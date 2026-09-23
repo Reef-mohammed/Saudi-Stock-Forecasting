@@ -19,6 +19,7 @@ import streamlit as st
 from models.montecarlo import MonteCarlo, scale_curve
 
 DATA = Path("data")
+NAMES_AR = Path("company_names_ar.csv")      # official Arabic names (from Tadawul's list on Arabic Wikipedia)
 MAX_YEARS = 5
 DAYS_PER_MONTH = 30.44
 LTR = "‎"                    # keeps "-75%" from being flipped to "75%-" in Arabic text
@@ -105,10 +106,13 @@ T = {
 # ----------------------------------------------------------------------------- data
 @st.cache_data
 def load_companies() -> pd.DataFrame:
+    """Active companies indexed by ticker, with a display label per language: 'Name (1234)'."""
     c = pd.read_csv(DATA / "companies.csv", parse_dates=["first_date", "last_date"])
-    c = c[c["active"]].sort_values("name")
-    c["label"] = c["name"] + " (" + c["ticker"].str.replace(".SR", "", regex=False) + ")"
-    return c
+    c = c[c["active"]].merge(pd.read_csv(NAMES_AR), on="ticker", how="left")
+    c["name_ar"] = c["name_ar"].fillna(c["name"])
+    code = " (" + c["ticker"].str.replace(".SR", "", regex=False) + ")"
+    c["label_en"], c["label_ar"] = c["name"] + code, c["name_ar"] + code
+    return c.set_index("ticker")
 
 
 @st.cache_data
@@ -194,9 +198,16 @@ def main() -> None:
 
     companies = load_companies()
     cal = load_calibration()
-    labels = companies.set_index("label")["ticker"]
-    default = [lb for lb in labels.index if labels[lb] in ("2222.SR", "1120.SR")]
-    picked = st.multiselect(t["pick"], labels.index, default=default, help=t["pick_help"])
+    lang = st.session_state.lang
+    labels = companies[f"label_{lang}"].sort_values()
+    # Streamlit keeps a widget's option labels per key, so each language gets its own picker;
+    # the chosen tickers are carried over when the language switches.
+    key = f"picked_{lang}"
+    if key not in st.session_state:
+        st.session_state[key] = st.session_state.get("picked", ["1120.SR", "2222.SR"])
+    picked = st.multiselect(t["pick"], labels.index, key=key, format_func=labels.get,
+                            help=t["pick_help"])
+    st.session_state.picked = picked
 
     st.warning(t["warning"])
     if not picked:
@@ -204,20 +215,20 @@ def main() -> None:
         return
 
     rows, figs, notes = [], [], []
-    for label in picked:
-        info = companies[companies["label"] == label].iloc[0]
-        close = load_close(info["ticker"])
-        sc = scenarios(info["ticker"], close.index[-1])
+    for ticker in picked:
+        label, name = labels[ticker], companies.loc[ticker, "name_ar" if lang == "ar" else "name"]
+        close = load_close(ticker)
+        sc = scenarios(ticker, close.index[-1])
         end, now = sc.iloc[-1], close.iloc[-1]
         # Percent changes keep the table narrow enough for a phone; prices are on the charts
         rows.append({t["company"]: label, t["price_today"]: f"{now:.2f}",
                      **{t[k]: pct(end[k] / now - 1) for k in ("crash", "likely", "good")}})
-        figs.append(chart(label, close, sc, t, rtl=st.session_state.lang == "ar"))
+        figs.append(chart(label, close, sc, t, rtl=lang == "ar"))
         hist_years = (close.index[-1] - close.index[0]).days / 365.25
         if hist_years < 5:
-            notes.append(t["short"].format(name=info["name"], years=hist_years))
+            notes.append(t["short"].format(name=name, years=hist_years))
         elif close.index[0] > pd.Timestamp("2006-01-01"):
-            notes.append(t["no_2006"].format(name=info["name"]))
+            notes.append(t["no_2006"].format(name=name))
 
     st.subheader(t["summary"] + " · " + t["in_years"])
     st.table(pd.DataFrame(rows).set_index(t["company"]))
@@ -230,7 +241,7 @@ def main() -> None:
     with st.expander(t["what_title"], expanded=True):
         st.markdown(t["what"])
         st.caption(tested_note(cal, t))
-    st.caption(t["data_date"].format(date=f"{max(load_close(labels[p]).index[-1] for p in picked):%Y-%m-%d}"))
+    st.caption(t["data_date"].format(date=f"{max(load_close(p).index[-1] for p in picked):%Y-%m-%d}"))
 
 
 if __name__ == "__main__":
