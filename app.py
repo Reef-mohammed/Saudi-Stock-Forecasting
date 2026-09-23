@@ -209,13 +209,10 @@ def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> 
                           "likely": [close.iloc[-1]], "good": [close.iloc[-1]]})
     sc = pd.concat([today, sc], ignore_index=True)
 
-    # Hover labels are one line each: Safari reorders Arabic across the lines of a multi-line SVG
-    # label, mixing words from different lines. A right-to-left mark (RLM) at each end keeps a
-    # single Arabic line in order inside the left-to-right chart.
+    # One "unified" hover box. Plotly draws each of its rows as separate text, so Safari can't mix
+    # Arabic words between rows (it does in a multi-line label). A right-to-left mark (RLM) at each
+    # end keeps a single Arabic row in order inside the left-to-right chart.
     mark = RLM if rtl else ""
-
-    def label(color: str) -> dict:
-        return dict(bgcolor="#1b1d24", bordercolor=color, font=dict(color=color))
 
     def value_hover(key: str) -> str:
         return f"{mark}{t[key]}: %{{y:.2f}} {t['sar']}{mark}<extra></extra>"
@@ -223,37 +220,40 @@ def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> 
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=hist.index, y=hist.values, name=t["history"],
                              line=dict(color=COLORS["history"], width=1.5),
-                             hovertemplate=value_hover("history"), hoverlabel=label("#dddddd")))
+                             hovertemplate=value_hover("history")))
     fig.add_trace(go.Scatter(x=sc["date"], y=sc["good"], name=t["good"],
-                             line=dict(color=COLORS["good"], width=2),
-                             hovertemplate=value_hover("good"), hoverlabel=label(COLORS["good"])))
+                             line=dict(color=COLORS["good"], width=2), hovertemplate=value_hover("good")))
     fig.add_trace(go.Scatter(x=sc["date"], y=sc["crash"], name=t["crash"], fill="tonexty",
                              fillcolor=COLORS["band"], line=dict(color=COLORS["crash"], width=2),
-                             hovertemplate=value_hover("crash"), hoverlabel=label(COLORS["crash"])))
+                             hovertemplate=value_hover("crash")))
     fig.add_trace(go.Scatter(x=sc["date"], y=sc["likely"], name=t["likely"],
                              line=dict(color=COLORS["likely"], width=2, dash="dash"),
-                             hovertemplate=value_hover("likely"), hoverlabel=label(COLORS["likely"])))
+                             hovertemplate=value_hover("likely")))
 
-    # The date gets its own label along the top of the chart, from an invisible line there.
-    # Streamlit's Plotly has no Arabic month names, so dates are written out here.
+    # The date is the box's first row, from an invisible line added last (the box lists traces in
+    # reverse order). Streamlit's Plotly has no Arabic month names, so dates are written out here,
+    # and Plotly's own date header is blanked.
     def date_text(d: pd.Timestamp, with_day: bool) -> str:
         month = ARABIC_MONTHS[d.month - 1] if rtl else f"{d:%b}"
         text = f"{d.day} {month} {d.year}" if with_day else f"{month} {d.year}"
         return f"{mark}{text}{mark}"
 
     dates = [*hist.index, *sc["date"].iloc[1:]]
-    top = max(hist.max(), sc["good"].max())
-    fig.add_trace(go.Scatter(x=dates, y=[top] * len(dates), mode="lines", line=dict(width=0),
-                             showlegend=False, hoverlabel=label("#f0f0f0"),
+    fig.add_trace(go.Scatter(x=dates, y=[*hist.values, *sc["likely"].iloc[1:]], mode="lines",
+                             line=dict(width=0), showlegend=False,
                              customdata=[date_text(d, True) for d in hist.index]
                                         + [date_text(d, False) for d in sc["date"].iloc[1:]],
                              hovertemplate="<b>%{customdata}</b><extra></extra>"))
 
     side = dict(x=1, xanchor="right") if rtl else dict(x=0, xanchor="left")
     fig.update_layout(title=dict(text=name, font=dict(size=16), **side), height=360,
-                      margin=dict(l=10, r=10, t=40, b=10), hovermode="x",
+                      margin=dict(l=10, r=10, t=40, b=10), hovermode="x unified",
+                      hoverlabel=dict(bgcolor="#1b1d24", bordercolor="#444444", font=dict(color="#f0f0f0")),
                       legend=dict(orientation="h", yanchor="top", y=-0.12, **side),
                       yaxis_title="SAR", dragmode=False)
+    # Blank Plotly's date header (the date row replaces it); label every year, even on a phone,
+    # where Plotly would otherwise skip to every other year
+    fig.update_xaxes(hoverformat=" ", dtick="M12", tickformat="%Y", tickfont=dict(size=11))
     fig.update_xaxes(showspikes=True, spikemode="across", spikesnap="cursor", spikethickness=1,
                      spikedash="dot", spikecolor="#888888")
     # Fixed axes: touching the chart on a phone must not zoom or pan it, only show the values
