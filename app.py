@@ -237,7 +237,9 @@ def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> 
     fig.update_layout(title=dict(text=name, font=dict(size=16), **side), height=360,
                       margin=dict(l=10, r=10, t=40, b=10), hovermode="x unified",
                       hoverlabel=dict(bgcolor="#1b1d24", bordercolor="#444444", font=dict(color="#f0f0f0")),
-                      legend=dict(orientation="h", yanchor="top", y=-0.12, **side),
+                      # Each legend item takes half the width: two per row, a 2 x 2 grid
+                      legend=dict(orientation="h", yanchor="top", y=-0.12, entrywidth=0.5,
+                                  entrywidthmode="fraction", **side),
                       yaxis_title="SAR", dragmode=False)
     # Hover header is the month (Arabic names come from the chart config's locale); label every
     # year, even on a phone, where Plotly would otherwise skip to every other year
