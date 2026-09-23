@@ -1,5 +1,5 @@
 """
-Saudi stock scenarios: pick companies, pick 1-5 years, see crash / likely / good cases.
+Saudi stock scenarios: pick companies, see crash / likely / good cases over the next 5 years.
 
 Run locally:  streamlit run app.py
 Needs data/prices.parquet, data/companies.csv (build_dataset.py) and
@@ -22,19 +22,18 @@ DATA = Path("data")
 MAX_YEARS = 5
 DAYS_PER_MONTH = 30.44
 LTR = "‎"                    # keeps "-75%" from being flipped to "75%-" in Arabic text
-ARABIC_YEARS = {1: "سنة", 2: "سنتين", 3: "3 سنوات", 4: "4 سنوات", 5: "5 سنوات"}
 COLORS = {"crash": "#d64545", "likely": "#2f6fdb", "good": "#2e9d5b", "history": "#555555",
           "band": "rgba(47,111,219,0.12)"}
 
 T = {
     "en": {
         "title": "Saudi Stock Scenarios",
-        "subtitle": "Where could a Tadawul stock be in 1 to 5 years? Three scenarios, tested on 20 years of history.",
+        "subtitle": "Where could a Tadawul stock be over the next 5 years? Three scenarios, tested on 20 years of history.",
         "pick": "Companies", "pick_help": "Choose one or more companies",
-        "years": "Years ahead", "lang": "العربية",
+        "lang": "العربية",
         "crash": "Crash case", "likely": "Likely", "good": "Good case", "history": "Past price",
         "today": "Today", "company": "Company", "price_today": "Today (SAR)",
-        "in_years": "In {n} year(s)",
+        "in_years": "In 5 years",
         "summary": "Summary", "no_pick": "Choose at least one company to see its scenarios.",
         "what_title": "How to read this",
         "what": (
@@ -61,12 +60,12 @@ T = {
     },
     "ar": {
         "title": "سيناريوهات الأسهم السعودية",
-        "subtitle": "أين قد يكون سعر السهم في تداول بعد سنة إلى خمس سنوات؟ ثلاثة سيناريوهات مختبرة على 20 سنة من البيانات.",
+        "subtitle": "أين قد يكون سعر السهم في تداول خلال السنوات الخمس القادمة؟ ثلاثة سيناريوهات مختبرة على 20 سنة من البيانات.",
         "pick": "الشركات", "pick_help": "اختر شركة أو أكثر",
-        "years": "عدد السنوات", "lang": "English",
+        "lang": "English",
         "crash": "حالة الانهيار", "likely": "المتوقع", "good": "الحالة الجيدة", "history": "السعر السابق",
         "today": "اليوم", "company": "الشركة", "price_today": "اليوم (ريال)",
-        "in_years": "بعد {n}",
+        "in_years": "بعد 5 سنوات",
         "summary": "ملخص", "no_pick": "اختر شركة واحدة على الأقل لعرض السيناريوهات.",
         "what_title": "كيف تقرأ هذه الأرقام",
         "what": (
@@ -125,11 +124,15 @@ def scenarios(ticker: str, last_date: pd.Timestamp) -> pd.DataFrame:
     return s.rename(columns={"worst": "crash", "best": "good"})
 
 
-def tested_note(cal: dict, years: int, t: dict) -> str:
-    """Backtest result for the nearest tested horizon (1, 3 or 5 years)."""
-    tested = cal["tested"]
-    h = min(tested, key=lambda k: abs(cal["months"][k] - years * 12))
-    r = tested[h]
+def pct(x: float) -> str:
+    """Signed percent for the table: '+36%', '-52%', and '0%' rather than '-0%'."""
+    return "0%" if round(x, 2) == 0 else LTR + f"{x:+.0%}"
+
+
+def tested_note(cal: dict, t: dict) -> str:
+    """Backtest result at the chart's end (5 years)."""
+    h = f"{MAX_YEARS}y"
+    r = cal["tested"][h]
     return t["tested"].format(n=r["n"], origins=r["origins"].replace("-", "–"),
                               below=r["below_worst"], above=r["above_best"]) + f" ({h})"
 
@@ -184,7 +187,6 @@ def main() -> None:
     labels = companies.set_index("label")["ticker"]
     default = [lb for lb in labels.index if labels[lb] in ("2222.SR", "1120.SR")]
     picked = st.multiselect(t["pick"], labels.index, default=default, help=t["pick_help"])
-    years = st.slider(t["years"], 1, MAX_YEARS, 3)
 
     st.warning(t["warning"])
     if not picked:
@@ -196,11 +198,10 @@ def main() -> None:
         info = companies[companies["label"] == label].iloc[0]
         close = load_close(info["ticker"])
         sc = scenarios(info["ticker"], close.index[-1])
-        sc = sc[sc["month"] <= years * 12]
         end, now = sc.iloc[-1], close.iloc[-1]
         # Percent changes keep the table narrow enough for a phone; prices are on the charts
         rows.append({t["company"]: label, t["price_today"]: f"{now:.2f}",
-                     **{t[k]: LTR + f"{end[k] / now - 1:+.0%}" for k in ("crash", "likely", "good")}})
+                     **{t[k]: pct(end[k] / now - 1) for k in ("crash", "likely", "good")}})
         figs.append(chart(label, close, sc, t))
         hist_years = (close.index[-1] - close.index[0]).days / 365.25
         if hist_years < 5:
@@ -208,8 +209,7 @@ def main() -> None:
         elif close.index[0] > pd.Timestamp("2006-01-01"):
             notes.append(t["no_2006"].format(name=info["name"]))
 
-    n = years if st.session_state.lang == "en" else ARABIC_YEARS[years]
-    st.subheader(t["summary"] + " · " + t["in_years"].format(n=n))
+    st.subheader(t["summary"] + " · " + t["in_years"])
     st.table(pd.DataFrame(rows).set_index(t["company"]))
     for note in notes:
         st.caption("⚠️ " + note)
@@ -219,7 +219,7 @@ def main() -> None:
 
     with st.expander(t["what_title"], expanded=True):
         st.markdown(t["what"])
-        st.caption(tested_note(cal, years, t))
+        st.caption(tested_note(cal, t))
     st.caption(t["data_date"].format(date=f"{max(load_close(labels[p]).index[-1] for p in picked):%Y-%m-%d}"))
 
 
