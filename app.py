@@ -44,7 +44,7 @@ COLORS = {"crash": "#d64545", "likely": "#2f6fdb", "good": "#2e9d5b", "history":
 T = {
     "en": {
         "title": "5-Year Saudi Stock Forecast",
-        "subtitle": "Where could a Tadawul stock be over the next 5 years? Three scenarios, tested on 20 years of history.",
+        "subtitle": "Three possibilities for the share price in 5 years (crash, likely and good), based on over 20 years of Tadawul data.",
         "pick": "Companies", "pick_help": "Choose one or more companies",
         "lang": "العربية",
         "crash": "Crash case", "likely": "Likely", "good": "Good case", "history": "Past price",
@@ -76,7 +76,7 @@ T = {
     },
     "ar": {
         "title": "توقعات الأسهم السعودية لـ 5 سنوات",
-        "subtitle": "أين قد يكون سعر السهم في تداول خلال السنوات الخمس القادمة؟ ثلاثة سيناريوهات مختبرة على 20 سنة من البيانات.",
+        "subtitle": "ثلاثة احتمالات لسعر السهم بعد 5 سنوات: انهيار، متوقع، وجيد، مبنية على أكثر من 20 سنة من بيانات تداول.",
         "pick": "الشركات", "pick_help": "اختر شركة أو أكثر",
         "lang": "English",
         "crash": "حالة الانهيار", "likely": "المتوقع", "good": "الحالة الجيدة", "history": "السعر السابق",
