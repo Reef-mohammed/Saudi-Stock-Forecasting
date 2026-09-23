@@ -1,10 +1,11 @@
 """
-Backtest and calibrate the Monte Carlo scenarios at 1, 3 and 5 years.
+Backtest and calibrate the Monte Carlo scenarios at 1, 3, 5 and 10 years.
 
-For each ticker and origin (every quarter from 2012) the simulator sees only past prices. We record
+For each ticker and origin (every quarter from 2005) the simulator sees only past prices. We record
 where the real outcome landed relative to the simulated worst/best band, then pick the widening
 factor per horizon that makes the worst-best band contain the real outcome 80% of the time.
-10 years cannot be tested (the data is not long enough), so it reuses the 5-year factor.
+The 10-year test is weak: its origins (2005-2016) overlap heavily, so they cover only one or two
+independent 10-year periods. The summary reports this so the app can label it.
 
 Output: data/scenario_calibration.json (read by the app) and a summary table.
 
@@ -27,7 +28,7 @@ from models.xgb import market_index
 
 log = logging.getLogger("calibrate")
 
-HORIZON_MONTHS = {"1y": 12, "3y": 36, "5y": 60}
+HORIZON_MONTHS = {"1y": 12, "3y": 36, "5y": 60, "10y": 120}
 MIN_TRAIN = 3 * 252
 TARGET = 0.8
 
@@ -76,7 +77,7 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--data", type=Path, default=Path("data"))
     p.add_argument("--tickers", nargs="*")
-    p.add_argument("--start", default="2012-01-01")
+    p.add_argument("--start", default="2005-01-01")
     p.add_argument("--step", type=int, default=63, help="Trading days between origins")
     p.add_argument("--paths", type=int, default=1000)
     args = p.parse_args()
@@ -94,14 +95,15 @@ def main() -> None:
 
     # Pick the drift whose likely line was more accurate on average across horizons
     drift = summary.groupby("drift")["likely_mape"].mean().idxmin()
-    scale = summary[summary["drift"] == drift].set_index("horizon")["scale"].to_dict()
-    scale["10y"] = scale["5y"]                                  # untestable: reuse the longest tested
-    calib = {"drift": drift, "target_coverage": TARGET, "scale": scale,
-             "months": {**HORIZON_MONTHS, "10y": 120},
-             "tested": {k: int(v) for k, v in summary[summary["drift"] == drift]
-                        .set_index("horizon")["n"].items()}}
+    chosen = summary[summary["drift"] == drift].set_index("horizon")
+    origins = res[res["drift"] == drift].groupby("horizon")["origin"].agg(["min", "max"])
+    calib = {"drift": drift, "target_coverage": TARGET, "scale": chosen["scale"].to_dict(),
+             "months": HORIZON_MONTHS,
+             "tested": {h: {"n": int(chosen.loc[h, "n"]),
+                            "origins": f"{origins.loc[h, 'min']:%Y}-{origins.loc[h, 'max']:%Y}"}
+                        for h in HORIZON_MONTHS}}
     (args.data / "scenario_calibration.json").write_text(json.dumps(calib, indent=2))
-    log.info("Chose drift=%s, scale=%s", drift, {k: round(v, 2) for k, v in scale.items()})
+    log.info("Chose drift=%s, scale=%s", drift, {k: round(v, 2) for k, v in calib["scale"].items()})
 
 
 if __name__ == "__main__":
