@@ -1,5 +1,5 @@
 """
-Saudi Stock Forecasting: pick companies, see crash / likely / good cases over the next 5 years.
+5-Year Saudi Stock Forecast: pick companies, see crash / likely / good cases over the next 5 years.
 
 Run locally:  streamlit run app.py
 Needs data/prices.parquet, data/companies.csv (build_dataset.py) and
@@ -22,8 +22,8 @@ DATA = Path("data")
 NAMES_AR = Path("company_names_ar.csv")      # official Arabic names (from Tadawul's list on Arabic Wikipedia)
 MAX_YEARS = 5
 DAYS_PER_MONTH = 30.44
-LTR = "‎"                    # keeps "-75%" from being flipped to "75%-" in Arabic text
-LTR_ISOLATE = "⁦{}⁩"    # keeps "2005–2021" in order inside Arabic text
+LTR = "\u200e"                    # keeps "-75%" from being flipped to "75%-" in Arabic text
+LTR_ISOLATE = "\u2066{}\u2069"    # keeps "2005–2021" in order inside Arabic text
 # Streamlit's own styles left-align headings, captions and lists, so right-align them explicitly.
 # Charts stay left-to-right (time runs left to right in both languages).
 RTL_CSS = """<style>
@@ -43,7 +43,7 @@ COLORS = {"crash": "#d64545", "likely": "#2f6fdb", "good": "#2e9d5b", "history":
 
 T = {
     "en": {
-        "title": "Saudi Stock Forecasting",
+        "title": "5-Year Saudi Stock Forecast",
         "subtitle": "Where could a Tadawul stock be over the next 5 years? Three scenarios, tested on 20 years of history.",
         "pick": "Companies", "pick_help": "Choose one or more companies",
         "lang": "العربية",
@@ -62,7 +62,7 @@ T = {
             "- The shaded area is where the price stayed about 9 times out of 10 in our tests."
         ),
         "warning": (
-            "**This is not a prediction or financial advice.** Nobody can reliably predict stock "
+            "**These forecasts are not certain, and this is not financial advice.** Nobody can reliably predict stock "
             "prices. When the whole market crashes, almost every stock falls together, and in 2006 "
             "many Saudi stocks lost more than half their value within a year. The crash case is "
             "built to cover that, but a worse crash is always possible."
@@ -75,7 +75,7 @@ T = {
         "data_date": "Prices up to {date}.",
     },
     "ar": {
-        "title": "توقعات الأسهم السعودية",
+        "title": "توقعات الأسهم السعودية لـ 5 سنوات",
         "subtitle": "أين قد يكون سعر السهم في تداول خلال السنوات الخمس القادمة؟ ثلاثة سيناريوهات مختبرة على 20 سنة من البيانات.",
         "pick": "الشركات", "pick_help": "اختر شركة أو أكثر",
         "lang": "English",
@@ -186,7 +186,7 @@ def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> 
 
 # ----------------------------------------------------------------------------- page
 def main() -> None:
-    st.set_page_config(page_title="Saudi Stock Forecasting", page_icon="📈", layout="centered")
+    st.set_page_config(page_title="5-Year Saudi Stock Forecast", page_icon="📈", layout="centered")
     if "lang" not in st.session_state:
         st.session_state.lang = "ar"
     t = T[st.session_state.lang]
