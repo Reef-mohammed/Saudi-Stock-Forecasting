@@ -31,12 +31,16 @@ MIN_TRAIN = 3 * 252                                   # need 3 years of history 
 LEVEL = 0.8                                           # interval width scored for coverage
 
 
+def origin_positions(close: pd.Series, start: pd.Timestamp, step: int) -> range:
+    first = max(MIN_TRAIN, int(close.index.searchsorted(start)))
+    return range(first, len(close) - min(HORIZONS.values()), step)
+
+
 def backtest_ticker(close: pd.Series, model_names: list[str], start: pd.Timestamp,
                     step: int) -> list[dict]:
     rows = []
     h_max = max(HORIZONS.values())
-    first = max(MIN_TRAIN, int(close.index.searchsorted(start)))
-    for o in range(first, len(close) - min(HORIZONS.values()), step):
+    for o in origin_positions(close, start, step):
         train = close.iloc[:o + 1]
         origin_price = float(train.iloc[-1])
         for name in model_names:
@@ -50,6 +54,32 @@ def backtest_ticker(close: pd.Series, model_names: list[str], start: pd.Timestam
                              "origin_price": origin_price, "actual": actual, "pred": f["mean"],
                              "lo": f["lo"], "hi": f["hi"]})
     return rows
+
+
+def backtest_xgb(prices: pd.DataFrame, macro: pd.DataFrame, tickers: list[str],
+                 start: pd.Timestamp, step: int) -> pd.DataFrame:
+    """Global model: retrain once a year on all tickers, forecast every origin in that year."""
+    from models.xgb import GlobalXGB, add_targets, build_features
+
+    panel = add_targets(build_features(prices[prices["ticker"].isin(tickers)], macro), HORIZONS)
+    # The same origins the per-series models are scored on
+    is_origin = np.zeros(len(panel), dtype=bool)
+    for t, idx in panel.groupby("ticker").indices.items():
+        is_origin[idx[list(origin_positions(pd.Series(index=panel["date"].iloc[idx]), start, step))]] = True
+    origins = panel[is_origin]
+
+    preds = []
+    for year in sorted(origins["date"].dt.year.unique()):
+        cutoff = pd.Timestamp(year=year, month=1, day=1)
+        rows = origins[origins["date"].dt.year == year]
+        log.info("xgb: training with data known by %s, forecasting %d origins", cutoff.date(), len(rows))
+        preds.append(GlobalXGB(HORIZONS).fit(panel, cutoff).predict(rows))
+    res = pd.concat(preds, ignore_index=True)
+
+    actual = pd.concat([origins[["ticker", "date"]].assign(horizon=label,
+                        actual=origins["close"] * np.exp(origins[f"y_{label}"])) for label in HORIZONS])
+    res = res.merge(actual.rename(columns={"date": "origin"}), on=["ticker", "origin", "horizon"])
+    return res.dropna(subset=["actual"]).assign(model="xgb")
 
 
 def summarize(res: pd.DataFrame) -> pd.DataFrame:
@@ -82,6 +112,7 @@ def main() -> None:
     p.add_argument("--tickers", nargs="*", help="Default: all active tickers")
     p.add_argument("--start", default="2012-01-01", help="First forecast origin")
     p.add_argument("--step", type=int, default=21, help="Trading days between forecast origins")
+    p.add_argument("--no-xgb", dest="xgb", action="store_false", help="Skip the global XGBoost model")
     args = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     if "naive" not in args.models:
@@ -100,6 +131,10 @@ def main() -> None:
             log.info("%d/%d tickers", i, len(tickers))
 
     res = pd.DataFrame(rows)
+    if args.xgb:
+        macro = pd.read_parquet(args.data / "macro.parquet")
+        res = pd.concat([res, backtest_xgb(prices, macro, tickers, pd.Timestamp(args.start), args.step)],
+                        ignore_index=True)
     res.to_parquet(args.data / "backtest_results.parquet", index=False)
     metrics = summarize(res)
     metrics.to_csv(args.data / "backtest_metrics.csv", index=False)

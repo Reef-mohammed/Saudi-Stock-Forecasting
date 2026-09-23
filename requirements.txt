@@ -3,3 +3,4 @@ numpy
 yfinance>=0.2.40
 pyarrow
 kaggle
+xgboost>=2.0
