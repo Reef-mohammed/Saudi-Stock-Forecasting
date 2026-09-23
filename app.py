@@ -235,15 +235,18 @@ def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> 
     fig.add_trace(scenario("likely"))
 
     side = dict(x=1, xanchor="right") if rtl else dict(x=0, xanchor="left")
-    fig.update_layout(title=dict(text=name, font=dict(size=16), **side), height=360,
+    # Title placed against the plot area (xref "paper"), like the legends, so their edges line up
+    fig.update_layout(title=dict(text=name, font=dict(size=16), xref="paper", **side), height=360,
                       margin=dict(l=10, r=10, t=40, b=10), hovermode="x unified",
                       hoverlabel=dict(bgcolor="#1b1d24", bordercolor="#444444", font=dict(color="#f0f0f0")),
                       # Two legends of two items, one per row: a compact 2 x 2 block on the right
                       # (left in English)
+                      # Transparent backgrounds: each legend box is taller than the row gap, and an
+                      # opaque second box would cover the bottom of the first row's text
                       legend=dict(orientation="h", yanchor="top", y=-0.12, entrywidth=85,
-                                  font=dict(size=11), **side),
-                      legend2=dict(orientation="h", yanchor="top", y=-0.2, entrywidth=85,
-                                   font=dict(size=11), **side),
+                                  font=dict(size=11), bgcolor="rgba(0,0,0,0)", **side),
+                      legend2=dict(orientation="h", yanchor="top", y=-0.21, entrywidth=85,
+                                   font=dict(size=11), bgcolor="rgba(0,0,0,0)", **side),
                       yaxis_title="SAR", dragmode=False)
     # Hover header is the month (Arabic names come from the chart config's locale); label every
     # year, even on a phone, where Plotly would otherwise skip to every other year
