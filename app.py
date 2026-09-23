@@ -47,7 +47,7 @@ T = {
     "en": {
         "title": "5-Year Saudi Stock Forecast",
         "subtitle": "Three possibilities for the share price in 5 years (crash, likely and good), based on over 20 years of Tadawul data.",
-        "pick": "Companies", "pick_help": "Choose one or more companies",
+        "pick": "Choose one or more companies",
         "lang": "العربية",
         "crash": "Crash case", "likely": "Likely", "good": "Good case", "history": "Past price",
         "today": "Today", "company": "Company", "price_today": "Today (SAR)",
@@ -79,7 +79,7 @@ T = {
     "ar": {
         "title": "توقعات الأسهم السعودية لـ 5 سنوات",
         "subtitle": "ثلاثة احتمالات لسعر السهم بعد 5 سنوات: انهيار، متوقع، وجيد، مبنية على أكثر من 20 سنة من بيانات تداول.",
-        "pick": "الشركات", "pick_help": "اختر شركة أو أكثر",
+        "pick": "اختر شركة أو أكثر",
         "lang": "English",
         "crash": "حالة الانهيار", "likely": "المتوقع", "good": "الحالة الجيدة", "history": "السعر السابق",
         "today": "اليوم", "company": "الشركة", "price_today": "اليوم (ريال)",
@@ -212,8 +212,7 @@ def main() -> None:
     key = f"picked_{lang}"
     if key not in st.session_state:
         st.session_state[key] = st.session_state.get("picked", ["1120.SR", "2222.SR"])
-    picked = st.multiselect(t["pick"], labels.index, key=key, format_func=labels.get,
-                            help=t["pick_help"])
+    picked = st.multiselect(t["pick"], labels.index, key=key, format_func=labels.get)
     st.session_state.picked = picked
 
     st.warning(t["warning"])
