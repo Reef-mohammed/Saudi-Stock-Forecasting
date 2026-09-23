@@ -69,7 +69,7 @@ T = {
     "en": {
         "title": "5-Year Saudi Stock Forecast",
         "subtitle": "Three possibilities for the share price in 5 years (crash, likely and good), based on over 20 years of Tadawul data.",
-        "pick": "Choose one or more companies",
+        "pick": "Choose one or more companies", "placeholder": "Search companies",
         "lang": "العربية",
         "crash": "Crash case", "likely": "Likely", "good": "Good case", "history": "Past price",
         "today": "Today", "company": "Company", "price_today": "Today (SAR)", "sar": "SAR",
@@ -100,7 +100,7 @@ T = {
     "ar": {
         "title": "توقعات الأسهم السعودية لـ 5 سنوات",
         "subtitle": "ثلاثة احتمالات لسعر السهم بعد 5 سنوات: انهيار، متوقع، وجيد، مبنية على أكثر من 20 سنة من بيانات تداول.",
-        "pick": "اختر شركة أو أكثر",
+        "pick": "اختر شركة أو أكثر", "placeholder": "ابحث عن شركة",
         "lang": "English",
         "crash": "حالة الانهيار", "likely": "المتوقع", "good": "الحالة الجيدة", "history": "السعر السابق",
         "today": "اليوم", "company": "الشركة", "price_today": "اليوم (ريال)", "sar": "ريال",
@@ -279,13 +279,15 @@ def main() -> None:
         st.session_state[key] = st.session_state.get("picked", ["1120.SR", "2222.SR"])
     # At most 5: each company adds a chart and a live price download
     picked = st.multiselect(t["pick"], labels.index, key=key, format_func=labels.get,
-                            max_selections=MAX_COMPANIES, select_all=False)
+                            max_selections=MAX_COMPANIES, select_all=False,
+                            placeholder=t["placeholder"])
     st.session_state.picked = picked
 
-    st.warning(t["warning"])
     if not picked:
         st.info(t["no_pick"])
+        st.warning(t["warning"])
         return
+    st.warning(t["warning"])
 
     rows, figs, notes = [], [], []
     for ticker in picked:
