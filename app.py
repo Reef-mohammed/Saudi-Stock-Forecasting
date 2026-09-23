@@ -32,6 +32,10 @@ RTL_CSS = """<style>
 .stMainBlockContainer p, .stMainBlockContainer li, .stMainBlockContainer th,
 .stMainBlockContainer td, [data-testid="stCaptionContainer"] { text-align: right !important; }
 .stMainBlockContainer ul, .stMainBlockContainer ol { padding-right: 1.5em; padding-left: 0; }
+/* Streamlit separates table columns with a right border; mirrored columns need it on the left */
+.stMainBlockContainer th, .stMainBlockContainer td {
+  border-left: 1px solid rgba(128, 128, 128, 0.2) !important; border-right: none !important; }
+.stMainBlockContainer tr > :last-child { border-left: none !important; }
 .js-plotly-plot, .js-plotly-plot * { direction: ltr; }
 </style>"""
 COLORS = {"crash": "#d64545", "likely": "#2f6fdb", "good": "#2e9d5b", "history": "#555555",
