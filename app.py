@@ -64,10 +64,10 @@ T = {
             "- The shaded area is where the price stayed about 9 times out of 10 in our tests."
         ),
         "warning": (
-            "**These forecasts are not certain, and this is not financial advice.** Nobody can reliably predict stock "
-            "prices. When the whole market crashes, almost every stock falls together, and in 2006 "
-            "many Saudi stocks lost more than half their value within a year. The crash case is "
-            "built to cover that, but a worse crash is always possible."
+            "**These forecasts are not certain, and this is not financial advice.** Stock prices "
+            "cannot be predicted reliably. The crash case shows what could happen in a severe fall "
+            "of the whole market, when most stocks drop together, but an even bigger fall is always "
+            "possible. Use these numbers as a guide, not a guarantee."
         ),
         "tested": "Tested on {n:,} past 5-year forecasts made {origins}: {below:.0%} ended below the crash case, "
                   "{above:.0%} above the good case.",
@@ -95,9 +95,9 @@ T = {
             "- المنطقة المظللة هي المكان الذي بقي فيه السعر تقريباً 9 مرات من كل 10 في اختباراتنا."
         ),
         "warning": (
-            "**هذه ليست توقعات مؤكدة ولا نصيحة مالية.** لا أحد يستطيع توقع أسعار الأسهم بدقة. "
-            "عندما ينهار السوق كله تنخفض معظم الأسهم معاً، وفي عام 2006 خسرت أسهم سعودية كثيرة أكثر "
-            "من نصف قيمتها خلال سنة. حالة الانهيار مصممة لتغطية ذلك، لكن انهياراً أسوأ ممكن دائماً."
+            "**هذه التوقعات غير مؤكدة وليست نصيحة مالية.** لا يمكن توقع أسعار الأسهم بدقة. "
+            "تُظهر حالة الانهيار ما قد يحدث عند هبوط حاد في السوق كله تنخفض فيه معظم الأسهم معاً، "
+            "لكن هبوطاً أكبر ممكن دائماً. استخدم هذه الأرقام كدليل، وليس كضمان."
         ),
         "tested": "تم اختبارها على {n:,} توقع سابق لمدة 5 سنوات بين {origins}: {below:.0%} انتهت تحت حالة الانهيار، "
                   "و{above:.0%} فوق الحالة الجيدة.",
