@@ -6,7 +6,7 @@ against what actually happened. Origins step forward through time, so no future 
 
 Output (in data/)
   backtest_results.parquet   one row per ticker x origin x model x horizon
-  backtest_metrics.csv       summary per model x horizon (the numbers to show in the app / on LinkedIn)
+  backtest_metrics.csv       summary per model x horizon (the numbers to show in the app)
 
 Usage
   python backtest.py
