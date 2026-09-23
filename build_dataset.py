@@ -32,6 +32,10 @@ YF_START = "2019-06-01"          # start yfinance a bit before Kaggle ends -> ov
 MACRO_TICKERS = {"^TASI.SR": "tasi", "BZ=F": "brent"}
 SHORT_HISTORY_DAYS = 3 * 252     # < ~3 trading years -> warn in the app
 SCALE_TOLERANCE = 0.02           # >2% median price mismatch at overlap -> rescale Kaggle history
+# Tadawul limits daily moves to +/-10%, so a bigger one-day move is a bad tick or an
+# unadjusted corporate action (capital cut, rights issue, bonus shares), not a real return.
+SPIKE_MOVE = 0.25                # one-day move that fully reverts next day -> bad tick, drop the row
+BREAK_MOVE = 0.25                # one-day move that persists -> corporate action, back-adjust history
 
 # Kaggle column names vary between versions/datasets, so map any known alias -> our name.
 COLUMN_ALIASES = {
@@ -100,6 +104,22 @@ def fetch_yfinance(tickers: list[str], start: str, batch_size: int = 40) -> pd.D
         frames.append(long)
         time.sleep(1)                                          # be polite to the API
 
+    # Threaded downloads sometimes fail on yfinance's cache ("database is locked"): retry those alone
+    got = {t for f in frames for t in f.loc[f["close"].notna(), "ticker"].unique()}
+    missing = [t for t in tickers if t not in got]
+    if missing and len(missing) < len(tickers):
+        log.info("yfinance: retrying %d tickers one by one", len(missing))
+        for t in missing:
+            df = yf.download(t, start=start, auto_adjust=False, progress=False, threads=False)
+            if not df.empty:
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = df.columns.get_level_values(0)
+                df = df.reset_index()
+                df.columns = [str(c).lower().replace(" ", "_") for c in df.columns]
+                df["ticker"] = t
+                frames.append(df)
+            time.sleep(0.5)
+
     if not frames:
         return pd.DataFrame(columns=["date", "ticker", *PRICE_COLS, "volume", "source"])
     out = pd.concat(frames, ignore_index=True)
@@ -133,15 +153,48 @@ def clean(df: pd.DataFrame) -> pd.DataFrame:
     # Fill missing open/high/low with close rather than dropping the day
     for c in ["open", "high", "low"]:
         df[c] = df[c].where(df[c] > 0, df["close"])
-    # Kaggle sometimes has one-day spikes from bad ticks: drop >60% daily moves that fully revert
-    df = df.sort_values(["ticker", "date"])
-    r = df.groupby("ticker")["close"].pct_change()
-    r_next = df.groupby("ticker")["close"].pct_change(-1)
-    spike = (r.abs() > 0.6) & (r_next.abs() > 0.35) & (np.sign(r) == np.sign(r_next))
-    if spike.any():
-        log.info("Dropping %d one-day price spikes", int(spike.sum()))
-    df = df[~spike]
-    return df.drop_duplicates(["ticker", "date"], keep="last")
+    df = df.sort_values(["ticker", "date"]).drop_duplicates(["ticker", "date"], keep="last")
+    return drop_spikes(df)
+
+
+def drop_spikes(df: pd.DataFrame) -> pd.DataFrame:
+    """Drop bad ticks: a big one-day move that reverts the next day. Repeat for back-to-back bad ticks."""
+    total = 0
+    for _ in range(5):
+        lr = np.log(df["close"]).groupby(df["ticker"]).diff()
+        lr_next = lr.groupby(df["ticker"]).shift(-1)
+        spike = ((lr.abs() > np.log1p(SPIKE_MOVE)) & (np.sign(lr) != np.sign(lr_next))
+                 & (lr_next.abs() > 0.7 * lr.abs()))
+        if not spike.any():
+            break
+        total += int(spike.sum())
+        df = df[~spike]
+    if total:
+        log.info("Dropped %d one-day price spikes", total)
+    return df
+
+
+def adjust_breaks(df: pd.DataFrame, report: Path | None = None) -> pd.DataFrame:
+    """Back-adjust history before persistent jumps (unadjusted corporate actions), like a split adjustment.
+
+    Returns stay correct on every other day; only the break day's return becomes 0.
+    """
+    df = df.sort_values(["ticker", "date"]).reset_index(drop=True)
+    lr = np.log(df["close"]).groupby(df["ticker"]).diff()
+    breaks = df.loc[lr.abs() > np.log1p(BREAK_MOVE), ["ticker", "date"]].assign(move=np.expm1(lr))
+    if breaks.empty:
+        return df
+    df = df.copy()
+    for _, b in breaks.iterrows():
+        before = (df["ticker"] == b["ticker"]) & (df["date"] < b["date"])
+        factor = 1 + b["move"]
+        df.loc[before, PRICE_COLS] *= factor
+        df.loc[before, "volume"] /= factor
+    log.info("Back-adjusted %d corporate-action breaks in %d tickers",
+             len(breaks), breaks["ticker"].nunique())
+    if report is not None:
+        breaks.to_csv(report, index=False)
+    return df
 
 
 def merge_sources(kaggle: pd.DataFrame, yf_df: pd.DataFrame) -> pd.DataFrame:
@@ -217,6 +270,8 @@ def main() -> None:
 
     yf_prices = clean(fetch_yfinance(tickers, YF_START))
     prices = merge_sources(kaggle_prices, yf_prices)
+    # The merge can create new bad ticks or breaks at the Kaggle/yfinance seam, so check again
+    prices = adjust_breaks(drop_spikes(prices), report=args.out / "breaks.csv")
 
     unknown = sorted(set(prices["ticker"]) - set(known["ticker"]))
     if unknown:
