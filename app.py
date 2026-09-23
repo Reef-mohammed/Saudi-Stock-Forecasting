@@ -2,13 +2,14 @@
 5-Year Saudi Stock Forecast: pick companies, see crash / likely / good cases over the next 5 years.
 
 Run locally:  streamlit run app.py
-Needs data/prices.parquet, data/companies.csv (build_dataset.py) and
-data/scenario_calibration.json (calibrate_scenarios.py).
+Reads the stored history in app_data/ (export_app_data.py) and tops it up with recent Yahoo
+prices for each company the user opens, cleaned the same way as the dataset.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import numpy as np
@@ -16,14 +17,19 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from build_dataset import PRICE_COLS, adjust_breaks, clean, drop_spikes, fetch_yfinance, merge_sources
 from models.montecarlo import MonteCarlo, scale_curve
 
-DATA = Path("data")
+DATA = Path("app_data")
+LIVE_TTL = 6 * 3600               # refetch recent prices from Yahoo at most every 6 hours
+LIVE_OVERLAP_DAYS = 365           # overlap with stored history, to detect new splits and rescale
 # Current English and Arabic names: Arabic from Tadawul's list on Arabic Wikipedia, English updated
 # for companies renamed after the 2020 dataset (e.g. Saudi National Bank, Saudi Awwal Bank)
 NAMES = Path("company_names.csv")
 MAX_YEARS = 5
 DAYS_PER_MONTH = 30.44
+ARABIC_MONTHS = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+                 "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
 LTR = "\u200e"                    # keeps "-75%" from being flipped to "75%-" in Arabic text
 LTR_ISOLATE = "\u2066{}\u2069"    # keeps "2005–2021" in order inside Arabic text
 # Streamlit's own styles left-align headings, captions and lists, so right-align them explicitly.
@@ -39,7 +45,11 @@ RTL_CSS = """<style>
   border-left: 1px solid rgba(128, 128, 128, 0.2) !important; border-right: none !important; }
 .stMainBlockContainer tr > :last-child { border-left: none !important; }
 .js-plotly-plot, .js-plotly-plot * { direction: ltr; }
+/* Hover box text is Arabic, so lay it out right to left ("7 مايو 2025", not "مايو 2025 7") */
+.js-plotly-plot .hoverlayer .hovertext text { direction: rtl; unicode-bidi: plaintext; }
 </style>"""
+# Plotly's hover mode "x" also labels the axis with an English date; the hover box already shows it
+CHART_CSS = "<style>.js-plotly-plot .hoverlayer .axistext { display: none; }</style>"
 COLORS = {"crash": "#d64545", "likely": "#2f6fdb", "good": "#2e9d5b", "history": "#555555",
           "band": "rgba(47,111,219,0.12)"}
 
@@ -50,8 +60,8 @@ T = {
         "pick": "Choose one or more companies",
         "lang": "العربية",
         "crash": "Crash case", "likely": "Likely", "good": "Good case", "history": "Past price",
-        "today": "Today", "company": "Company", "price_today": "Today (SAR)",
-        "in_years": "In 5 years",
+        "today": "Today", "company": "Company", "price_today": "Today (SAR)", "sar": "SAR",
+        "in_years": "Next 5 years",
         "summary": "Summary", "no_pick": "Choose at least one company to see its scenarios.",
         "what_title": "What do these numbers mean?",
         "what": (
@@ -82,8 +92,8 @@ T = {
         "pick": "اختر شركة أو أكثر",
         "lang": "English",
         "crash": "حالة الانهيار", "likely": "المتوقع", "good": "الحالة الجيدة", "history": "السعر السابق",
-        "today": "اليوم", "company": "الشركة", "price_today": "اليوم (ريال)",
-        "in_years": "بعد 5 سنوات",
+        "today": "اليوم", "company": "الشركة", "price_today": "اليوم (ريال)", "sar": "ريال",
+        "in_years": "السنوات الخمس القادمة",
         "summary": "ملخص", "no_pick": "اختر شركة واحدة على الأقل لعرض السيناريوهات.",
         "what_title": "ماذا تعني هذه الأرقام؟",
         "what": (
@@ -114,7 +124,7 @@ T = {
 def load_companies() -> pd.DataFrame:
     """Active companies indexed by ticker, with a display label per language: 'Name (1234)'."""
     c = pd.read_csv(DATA / "companies.csv", parse_dates=["first_date", "last_date"])
-    c = c[c["active"]].merge(pd.read_csv(NAMES), on="ticker", how="left")
+    c = c.merge(pd.read_csv(NAMES), on="ticker", how="left")
     c["name_en"] = c["name_en"].fillna(c["name"])
     c["name_ar"] = c["name_ar"].fillna(c["name_en"])
     code = " (" + c["ticker"].str.replace(".SR", "", regex=False) + ")"
@@ -128,10 +138,31 @@ def load_calibration() -> dict:
 
 
 @st.cache_data
+def stored_close(ticker: str) -> pd.Series:
+    p = pd.read_parquet(DATA / "prices.parquet", filters=[("ticker", "==", ticker)])
+    return p.set_index("date")["close"].astype(float).sort_index()
+
+
+@st.cache_data(ttl=LIVE_TTL, show_spinner=False)
 def load_close(ticker: str) -> pd.Series:
-    p = pd.read_parquet(DATA / "prices.parquet", columns=["date", "ticker", "close"],
-                        filters=[("ticker", "==", ticker)])
-    return p.set_index("date")["close"].sort_index()
+    """Stored history topped up with recent Yahoo prices; the stored history alone if Yahoo fails."""
+    stored = stored_close(ticker)
+    try:
+        start = stored.index[-1] - pd.Timedelta(days=LIVE_OVERLAP_DAYS)
+        recent = clean(fetch_yfinance([ticker], f"{start:%Y-%m-%d}"))
+        if recent.empty:
+            return stored
+        hist = stored.rename("close").reset_index().assign(ticker=ticker, volume=np.nan)
+        hist["date"] = hist["date"].astype("datetime64[ns]")      # match Yahoo's date type for the merge
+        recent["date"] = recent["date"].astype("datetime64[ns]")
+        for c in PRICE_COLS:
+            hist[c] = hist["close"]
+        # Rescales stored history if Yahoo has adjusted for a split since it was saved
+        merged = adjust_breaks(drop_spikes(merge_sources(hist, recent)))
+        return merged.set_index("date")["close"].sort_index()
+    except Exception as e:                        # network down, Yahoo rate limit, format change...
+        logging.warning("Live prices failed for %s, using stored history: %s", ticker, e)
+        return stored
 
 
 @st.cache_data
@@ -168,23 +199,42 @@ def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> 
     sc = pd.concat([today, sc], ignore_index=True)
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=hist.index, y=hist.values, name=t["history"],
-                             line=dict(color=COLORS["history"], width=1.5),
-                             hovertemplate="%{y:.2f}<extra></extra>"))
-    fig.add_trace(go.Scatter(x=sc["date"], y=sc["good"], name=t["good"],
-                             line=dict(color=COLORS["good"], width=2),
-                             hovertemplate="%{y:.2f}<extra>" + t["good"] + "</extra>"))
+    fig.add_trace(go.Scatter(x=hist.index, y=hist.values, name=t["history"], hoverinfo="skip",
+                             line=dict(color=COLORS["history"], width=1.5)))
+    fig.add_trace(go.Scatter(x=sc["date"], y=sc["good"], name=t["good"], hoverinfo="skip",
+                             line=dict(color=COLORS["good"], width=2)))
     fig.add_trace(go.Scatter(x=sc["date"], y=sc["crash"], name=t["crash"], fill="tonexty",
-                             fillcolor=COLORS["band"], line=dict(color=COLORS["crash"], width=2),
-                             hovertemplate="%{y:.2f}<extra>" + t["crash"] + "</extra>"))
-    fig.add_trace(go.Scatter(x=sc["date"], y=sc["likely"], name=t["likely"],
-                             line=dict(color=COLORS["likely"], width=2, dash="dash"),
-                             hovertemplate="%{y:.2f}<extra>" + t["likely"] + "</extra>"))
+                             fillcolor=COLORS["band"], hoverinfo="skip",
+                             line=dict(color=COLORS["crash"], width=2)))
+    fig.add_trace(go.Scatter(x=sc["date"], y=sc["likely"], name=t["likely"], hoverinfo="skip",
+                             line=dict(color=COLORS["likely"], width=2, dash="dash")))
+
+    # One invisible line carries the whole hover box. Streamlit's Plotly has no Arabic month
+    # names, so the dates are written out here rather than formatted by Plotly.
+    def date_text(d: pd.Timestamp, with_day: bool) -> str:
+        month = ARABIC_MONTHS[d.month - 1] if rtl else f"{d:%b}"
+        return f"{d.day} {month} {d.year}" if with_day else f"{month} {d.year}"
+
+    def line(key: str, value: float) -> str:
+        color = "#dddddd" if key == "history" else COLORS[key]    # grey line colour is too dark here
+        return f"<span style='color:{color}'>{t[key]}: {value:.2f} {t['sar']}</span>"
+
+    past = [f"<b>{date_text(d, True)}</b><br>{line('history', v)}" for d, v in hist.items()]
+    future = [f"<b>{date_text(r.date, False)}</b><br>{line('likely', r.likely)}<br>"
+              f"{line('crash', r.crash)}<br>{line('good', r.good)}" for r in sc.iloc[1:].itertuples()]
+    fig.add_trace(go.Scatter(x=[*hist.index, *sc["date"].iloc[1:]], y=[*hist.values, *sc["likely"].iloc[1:]],
+                             customdata=past + future, hovertemplate="%{customdata}<extra></extra>",
+                             mode="lines", line=dict(width=0), showlegend=False))
+
     side = dict(x=1, xanchor="right") if rtl else dict(x=0, xanchor="left")
     fig.update_layout(title=dict(text=name, font=dict(size=16), **side), height=360,
-                      margin=dict(l=10, r=10, t=40, b=10), hovermode="x unified",
+                      margin=dict(l=10, r=10, t=40, b=10), hovermode="x",
+                      hoverlabel=dict(align="right" if rtl else "left", bgcolor="#1b1d24",
+                                      bordercolor="#444444", font=dict(color="#f0f0f0")),
                       legend=dict(orientation="h", yanchor="top", y=-0.12, **side),
                       yaxis_title="SAR", dragmode=False)
+    fig.update_xaxes(showspikes=True, spikemode="across", spikesnap="cursor", spikethickness=1,
+                     spikedash="dot", spikecolor="#888888")
     return fig
 
 
@@ -194,6 +244,7 @@ def main() -> None:
     if "lang" not in st.session_state:
         st.session_state.lang = "ar"
     t = T[st.session_state.lang]
+    st.markdown(CHART_CSS, unsafe_allow_html=True)
     if st.session_state.lang == "ar":
         st.markdown(RTL_CSS, unsafe_allow_html=True)
 

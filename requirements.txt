@@ -1,8 +1,7 @@
+# App (Streamlit Cloud installs this)
 pandas>=2.1
 numpy
-yfinance>=0.2.40
 pyarrow
-kaggle
-xgboost>=2.0
+yfinance>=0.2.40
 streamlit>=1.40
 plotly>=5.20

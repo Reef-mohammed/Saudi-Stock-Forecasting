@@ -181,13 +181,16 @@ def adjust_breaks(df: pd.DataFrame, report: Path | None = None) -> pd.DataFrame:
     """
     df = df.sort_values(["ticker", "date"]).reset_index(drop=True)
     lr = np.log(df["close"]).groupby(df["ticker"]).diff()
-    breaks = df.loc[lr.abs() > np.log1p(BREAK_MOVE), ["ticker", "date"]].assign(move=np.expm1(lr))
+    is_break = lr.abs() > np.log1p(BREAK_MOVE)
+    # Select the moves with the same mask: assigning the full series to an empty frame would
+    # expand it to every row
+    breaks = df.loc[is_break, ["ticker", "date"]].assign(move=np.expm1(lr[is_break]))
     if breaks.empty:
         return df
     df = df.copy()
-    for _, b in breaks.iterrows():
-        before = (df["ticker"] == b["ticker"]) & (df["date"] < b["date"])
-        factor = 1 + b["move"]
+    for ticker, date, move in zip(breaks["ticker"], breaks["date"], breaks["move"]):
+        before = (df["ticker"] == ticker) & (df["date"] < date)
+        factor = 1 + move
         df.loc[before, PRICE_COLS] *= factor
         df.loc[before, "volume"] /= factor
     log.info("Back-adjusted %d corporate-action breaks in %d tickers",

@@ -1,0 +1,4 @@
+# Research scripts: dataset build, backtests, calibration
+-r requirements.txt
+kaggle
+xgboost>=2.0

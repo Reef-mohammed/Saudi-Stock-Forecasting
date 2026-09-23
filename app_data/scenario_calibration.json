@@ -1,0 +1,45 @@
+{
+  "drift": "zero",
+  "months": {
+    "1y": 12,
+    "3y": 36,
+    "5y": 60
+  },
+  "miss_per_side": 0.1,
+  "scale_lo": {
+    "1y": 2.4049288944696445,
+    "3y": 2.042541896952467,
+    "5y": 1.5394174342568137
+  },
+  "scale_hi": {
+    "1y": 0.8998026994849128,
+    "3y": 0.7617211821906483,
+    "5y": 0.696066036776187
+  },
+  "tested": {
+    "1y": {
+      "n": 10676,
+      "origins": "2005-2025",
+      "coverage": 0.896,
+      "below_worst": 0.004,
+      "below_worst_max_year": 0.097,
+      "above_best": 0.1
+    },
+    "3y": {
+      "n": 9186,
+      "origins": "2005-2023",
+      "coverage": 0.901,
+      "below_worst": 0.007,
+      "below_worst_max_year": 0.097,
+      "above_best": 0.1
+    },
+    "5y": {
+      "n": 7735,
+      "origins": "2005-2021",
+      "coverage": 0.899,
+      "below_worst": 0.012,
+      "below_worst_max_year": 0.097,
+      "above_best": 0.1
+    }
+  }
+}
