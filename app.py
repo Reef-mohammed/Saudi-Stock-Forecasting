@@ -203,7 +203,9 @@ def tested_note(cal: dict, t: dict) -> str:
 
 
 # ----------------------------------------------------------------------------- chart
-def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> go.Figure:
+def chart(close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> go.Figure:
+    """The chart only. Its title and legend are page HTML (see legend_html): Safari lays out Arabic
+    inside SVG unpredictably, so aligning them within the chart can't be made reliable there."""
     hist = close[close.index >= close.index[-1] - pd.DateOffset(years=2)]
     today = pd.DataFrame({"date": [close.index[-1]], "crash": [close.iloc[-1]],
                           "likely": [close.iloc[-1]], "good": [close.iloc[-1]]})
@@ -219,11 +221,10 @@ def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> 
 
     def scenario(key: str) -> go.Scatter:
         return go.Scatter(x=sc["date"], y=sc[key], name=t[key], hovertemplate=value_hover(key),
-                          line=dict(color=COLORS[key], width=2, dash="dash" if key == "likely" else "solid"),
-                          legend="legend2" if key == "good" else "legend")    # row 1: likely, crash
+                          line=dict(color=COLORS[key], width=2, dash="dash" if key == "likely" else "solid"))
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=hist.index, y=hist.values, name=t["history"], legend="legend2",
+    fig.add_trace(go.Scatter(x=hist.index, y=hist.values, name=t["history"],
                              line=dict(color=COLORS["history"], width=1.5),
                              hovertemplate=value_hover("history")))
     fig.add_trace(scenario("good"))
@@ -234,21 +235,9 @@ def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> 
     fig.add_trace(scenario("crash"))
     fig.add_trace(scenario("likely"))
 
-    side = dict(x=1, xanchor="right") if rtl else dict(x=0, xanchor="left")
-    # Title placed against the plot area (xref "paper"), like the legends, so their edges line up
-    fig.update_layout(title=dict(text=name, font=dict(size=16), xref="paper", **side), height=360,
-                      margin=dict(l=10, r=10, t=40, b=10), hovermode="x unified",
+    fig.update_layout(height=320, margin=dict(l=10, r=0, t=10, b=10), showlegend=False,
+                      hovermode="x unified",
                       hoverlabel=dict(bgcolor="#1b1d24", bordercolor="#444444", font=dict(color="#f0f0f0")),
-                      # Two legends of two items, one per row: a compact 2 x 2 block on the right
-                      # (left in English)
-                      # Transparent backgrounds: each legend box is taller than the row gap, and an
-                      # opaque second box would cover the bottom of the first row's text
-                      # Items sized to their text (no fixed width), so the text itself ends at the
-                      # edge the title lines up with, rather than empty padding
-                      legend=dict(orientation="h", yanchor="top", y=-0.12,
-                                  font=dict(size=11), bgcolor="rgba(0,0,0,0)", **side),
-                      legend2=dict(orientation="h", yanchor="top", y=-0.21,
-                                   font=dict(size=11), bgcolor="rgba(0,0,0,0)", **side),
                       yaxis_title="SAR", dragmode=False)
     # Hover header is the month (Arabic names come from the chart config's locale); label every
     # year, even on a phone, where Plotly would otherwise skip to every other year
@@ -260,6 +249,20 @@ def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> 
     fig.update_xaxes(fixedrange=True)
     fig.update_yaxes(fixedrange=True)
     return fig
+
+
+def legend_html(t: dict) -> str:
+    """2 x 2 legend under a chart, as page HTML so it follows the page direction: its first column
+    sits on the right in Arabic and on the left in English, flush with the chart heading."""
+    def item(key: str, style: str) -> str:
+        sample = f"<span style='display:inline-block;width:22px;border-top:2px {style} {COLORS[key]};" \
+                 "vertical-align:middle;margin-inline-end:6px'></span>"
+        return f"<span>{sample}{t[key]}</span>"
+
+    items = [item("crash", "solid"), item("likely", "dashed"), item("good", "solid"), item("history", "solid")]
+    return ("<div style='display:grid;grid-template-columns:auto auto;justify-content:start;"
+            "column-gap:28px;row-gap:4px;font-size:0.8rem;opacity:0.85;margin:-0.5rem 0 1.5rem'>"
+            + "".join(items) + "</div>")
 
 
 # ----------------------------------------------------------------------------- page
@@ -310,10 +313,7 @@ def main() -> None:
         # Percent changes keep the table narrow enough for a phone; prices are on the charts
         rows.append({t["company"]: label, t["price_today"]: f"{now:.2f}",
                      **{t[k]: pct(end[k] / now - 1) for k in ("crash", "likely", "good")}})
-        # Chart titles are drawn as SVG, where phones ignore the isolate marks in the label; a
-        # right-to-left mark (RLM) on each side keeps "(1120)" after the name there
-        title = f"{RLM}{name} ({ticker[:4]}){RLM}" if lang == "ar" else label
-        figs.append(chart(title, close, sc, t, rtl=lang == "ar"))
+        figs.append((label, chart(close, sc, t, rtl=lang == "ar")))
         hist_years = (close.index[-1] - close.index[0]).days / 365.25
         if hist_years < 5:
             notes.append(t["short"].format(name=name, years=hist_years))
@@ -325,12 +325,14 @@ def main() -> None:
     for note in notes:
         st.caption("⚠️ " + note)
 
-    for fig in figs:
+    for label, fig in figs:
+        st.markdown(f"**{label}**")
         st.plotly_chart(fig, use_container_width=True, config={
             "displayModeBar": False, "scrollZoom": False, "doubleClick": False, "showAxisDragHandles": False,
             # Streamlit's Plotly has no Arabic locale, so pass the month names for its date formatting
             "locale": lang, "locales": {"ar": {"format": {"months": ARABIC_MONTHS,
                                                           "shortMonths": ARABIC_MONTHS}}}})
+        st.markdown(legend_html(t), unsafe_allow_html=True)
 
     with st.expander(t["what_title"], expanded=True):
         st.markdown(t["what"])
