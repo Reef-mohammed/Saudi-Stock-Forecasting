@@ -49,7 +49,14 @@ RTL_CSS = """<style>
 .js-plotly-plot .hoverlayer .hovertext text { direction: rtl; unicode-bidi: plaintext; }
 </style>"""
 # Plotly's hover mode "x" also labels the axis with an English date; the hover box already shows it
-CHART_CSS = "<style>.js-plotly-plot .hoverlayer .axistext { display: none; }</style>"
+CHART_CSS = """<style>
+.js-plotly-plot .hoverlayer .axistext { display: none; }
+/* Light shading on the summary table header (faint grey in light mode, where white would vanish) */
+.stMainBlockContainer table thead th { background-color: rgba(255, 255, 255, 0.08); }
+@media (prefers-color-scheme: light) {
+  .stMainBlockContainer table thead th { background-color: rgba(0, 0, 0, 0.04); }
+}
+</style>"""
 COLORS = {"crash": "#d64545", "likely": "#2f6fdb", "good": "#2e9d5b", "history": "#555555",
           "band": "rgba(47,111,219,0.12)"}
 
