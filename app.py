@@ -52,7 +52,7 @@ RTL_CSS = """<style>
 CHART_CSS = """<style>
 .js-plotly-plot .hoverlayer .axistext { display: none; }
 /* Light shading on the summary table header (faint grey in light mode, where white would vanish) */
-.stMainBlockContainer table thead th { background-color: rgba(255, 255, 255, 0.08); }
+.stMainBlockContainer table thead th { background-color: rgba(255, 255, 255, 0.08); font-weight: 700; }
 @media (prefers-color-scheme: light) {
   .stMainBlockContainer table thead th { background-color: rgba(0, 0, 0, 0.04); }
 }
