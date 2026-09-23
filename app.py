@@ -53,7 +53,7 @@ T = {
         "today": "Today", "company": "Company", "price_today": "Today (SAR)",
         "in_years": "In 5 years",
         "summary": "Summary", "no_pick": "Choose at least one company to see its scenarios.",
-        "what_title": "How to read this",
+        "what_title": "What do these numbers mean?",
         "what": (
             "- **Likely** is today's price. In our tests, no method predicted the direction of Saudi "
             "stocks better than assuming they stay where they are.\n"
@@ -85,7 +85,7 @@ T = {
         "today": "اليوم", "company": "الشركة", "price_today": "اليوم (ريال)",
         "in_years": "بعد 5 سنوات",
         "summary": "ملخص", "no_pick": "اختر شركة واحدة على الأقل لعرض السيناريوهات.",
-        "what_title": "كيف تقرأ هذه الأرقام",
+        "what_title": "ماذا تعني هذه الأرقام؟",
         "what": (
             "- **المتوقع** هو سعر اليوم. في اختباراتنا لم تتفوق أي طريقة في توقع اتجاه الأسهم السعودية "
             "على افتراض بقاء السعر كما هو.\n"
