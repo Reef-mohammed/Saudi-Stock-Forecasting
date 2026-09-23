@@ -217,33 +217,21 @@ def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> 
     def value_hover(key: str) -> str:
         return f"{mark}{t[key]}: %{{y:.2f}} {t['sar']}{mark}<extra></extra>"
 
+    def scenario(key: str) -> go.Scatter:
+        return go.Scatter(x=sc["date"], y=sc[key], name=t[key], hovertemplate=value_hover(key),
+                          line=dict(color=COLORS[key], width=2, dash="dash" if key == "likely" else "solid"))
+
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=hist.index, y=hist.values, name=t["history"],
                              line=dict(color=COLORS["history"], width=1.5),
                              hovertemplate=value_hover("history")))
-    fig.add_trace(go.Scatter(x=sc["date"], y=sc["good"], name=t["good"],
-                             line=dict(color=COLORS["good"], width=2), hovertemplate=value_hover("good")))
-    fig.add_trace(go.Scatter(x=sc["date"], y=sc["crash"], name=t["crash"], fill="tonexty",
-                             fillcolor=COLORS["band"], line=dict(color=COLORS["crash"], width=2),
-                             hovertemplate=value_hover("crash")))
-    fig.add_trace(go.Scatter(x=sc["date"], y=sc["likely"], name=t["likely"],
-                             line=dict(color=COLORS["likely"], width=2, dash="dash"),
-                             hovertemplate=value_hover("likely")))
-
-    # The date is the box's first row, from an invisible line added last (the box lists traces in
-    # reverse order). Streamlit's Plotly has no Arabic month names, so dates are written out here,
-    # and Plotly's own date header is blanked.
-    def date_text(d: pd.Timestamp, with_day: bool) -> str:
-        month = ARABIC_MONTHS[d.month - 1] if rtl else f"{d:%b}"
-        text = f"{d.day} {month} {d.year}" if with_day else f"{month} {d.year}"
-        return f"{mark}{text}{mark}"
-
-    dates = [*hist.index, *sc["date"].iloc[1:]]
-    fig.add_trace(go.Scatter(x=dates, y=[*hist.values, *sc["likely"].iloc[1:]], mode="lines",
-                             line=dict(width=0), showlegend=False,
-                             customdata=[date_text(d, True) for d in hist.index]
-                                        + [date_text(d, False) for d in sc["date"].iloc[1:]],
-                             hovertemplate="<b>%{customdata}</b><extra></extra>"))
+    fig.add_trace(scenario("good"))
+    # The shaded band is its own hidden trace: filled on the crash line, it would also show under
+    # the red line in the legend and hover box
+    fig.add_trace(go.Scatter(x=sc["date"], y=sc["crash"], fill="tonexty", fillcolor=COLORS["band"],
+                             line=dict(width=0), showlegend=False, hoverinfo="skip"))
+    fig.add_trace(scenario("crash"))
+    fig.add_trace(scenario("likely"))
 
     side = dict(x=1, xanchor="right") if rtl else dict(x=0, xanchor="left")
     fig.update_layout(title=dict(text=name, font=dict(size=16), **side), height=360,
@@ -251,9 +239,10 @@ def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> 
                       hoverlabel=dict(bgcolor="#1b1d24", bordercolor="#444444", font=dict(color="#f0f0f0")),
                       legend=dict(orientation="h", yanchor="top", y=-0.12, **side),
                       yaxis_title="SAR", dragmode=False)
-    # Blank Plotly's date header (the date row replaces it); label every year, even on a phone,
-    # where Plotly would otherwise skip to every other year
-    fig.update_xaxes(hoverformat=" ", dtick="M12", tickformat="%Y", tickfont=dict(size=11))
+    # Hover header is the month (Arabic names come from the chart config's locale); label every
+    # year, even on a phone, where Plotly would otherwise skip to every other year
+    fig.update_xaxes(hoverformat=f"{mark}%b %Y{mark}",
+                     dtick="M12", tickformat="%Y", tickfont=dict(size=11))
     fig.update_xaxes(showspikes=True, spikemode="across", spikesnap="cursor", spikethickness=1,
                      spikedash="dot", spikecolor="#888888")
     # Fixed axes: touching the chart on a phone must not zoom or pan it, only show the values
@@ -327,7 +316,10 @@ def main() -> None:
 
     for fig in figs:
         st.plotly_chart(fig, use_container_width=True, config={
-            "displayModeBar": False, "scrollZoom": False, "doubleClick": False, "showAxisDragHandles": False})
+            "displayModeBar": False, "scrollZoom": False, "doubleClick": False, "showAxisDragHandles": False,
+            # Streamlit's Plotly has no Arabic locale, so pass the month names for its date formatting
+            "locale": lang, "locales": {"ar": {"format": {"months": ARABIC_MONTHS,
+                                                          "shortMonths": ARABIC_MONTHS}}}})
 
     with st.expander(t["what_title"], expanded=True):
         st.markdown(t["what"])
