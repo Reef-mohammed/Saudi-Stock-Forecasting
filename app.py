@@ -1,5 +1,5 @@
 """
-Saudi stock scenarios: pick companies, see crash / likely / good cases over the next 5 years.
+Saudi Stock Forecasting: pick companies, see crash / likely / good cases over the next 5 years.
 
 Run locally:  streamlit run app.py
 Needs data/prices.parquet, data/companies.csv (build_dataset.py) and
@@ -43,7 +43,7 @@ COLORS = {"crash": "#d64545", "likely": "#2f6fdb", "good": "#2e9d5b", "history":
 
 T = {
     "en": {
-        "title": "Saudi Stock Scenarios",
+        "title": "Saudi Stock Forecasting",
         "subtitle": "Where could a Tadawul stock be over the next 5 years? Three scenarios, tested on 20 years of history.",
         "pick": "Companies", "pick_help": "Choose one or more companies",
         "lang": "العربية",
@@ -75,7 +75,7 @@ T = {
         "data_date": "Prices up to {date}.",
     },
     "ar": {
-        "title": "سيناريوهات الأسهم السعودية",
+        "title": "توقعات الأسهم السعودية",
         "subtitle": "أين قد يكون سعر السهم في تداول خلال السنوات الخمس القادمة؟ ثلاثة سيناريوهات مختبرة على 20 سنة من البيانات.",
         "pick": "الشركات", "pick_help": "اختر شركة أو أكثر",
         "lang": "English",
@@ -186,7 +186,7 @@ def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> 
 
 # ----------------------------------------------------------------------------- page
 def main() -> None:
-    st.set_page_config(page_title="Saudi Stock Scenarios", page_icon="📈", layout="centered")
+    st.set_page_config(page_title="Saudi Stock Forecasting", page_icon="📈", layout="centered")
     if "lang" not in st.session_state:
         st.session_state.lang = "ar"
     t = T[st.session_state.lang]
