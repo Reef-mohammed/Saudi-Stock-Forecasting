@@ -1,11 +1,11 @@
 """
-Backtest and calibrate the Monte Carlo scenarios at 1, 3, 5 and 10 years.
+Backtest and calibrate the Monte Carlo scenarios at 1, 3 and 5 years.
 
 For each ticker and origin (every quarter from 2005) the simulator sees only past prices. We record
 where the real outcome landed relative to the simulated worst/best band, then pick the widening
 factor per horizon that makes the worst-best band contain the real outcome 80% of the time.
-The 10-year test is weak: its origins (2005-2016) overlap heavily, so they cover only one or two
-independent 10-year periods. The summary reports this so the app can label it.
+The app stops at 5 years: 10-year outcomes exist only for 2005-2016 origins, which overlap so heavily
+that they cover one or two independent periods, too few to calibrate on.
 
 Output: data/scenario_calibration.json (read by the app) and a summary table.
 
@@ -28,7 +28,7 @@ from models.xgb import market_index
 
 log = logging.getLogger("calibrate")
 
-HORIZON_MONTHS = {"1y": 12, "3y": 36, "5y": 60, "10y": 120}
+HORIZON_MONTHS = {"1y": 12, "3y": 36, "5y": 60}
 MIN_TRAIN = 3 * 252
 TARGET = 0.8
 

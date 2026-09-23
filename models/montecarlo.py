@@ -1,5 +1,5 @@
 """
-Monte Carlo scenarios for long horizons (1-10 years): worst / likely / best.
+Monte Carlo scenarios for long horizons (1-5 years): worst / likely / best.
 
 Future paths are built by replaying random one-month blocks of the stock's own history (a block
 bootstrap). Blocks keep real crashes, fat tails and volatile spells, which a normal distribution
@@ -43,7 +43,7 @@ class MonteCarlo:
     def center(self, months: int) -> np.ndarray:
         return self.mu * BLOCK * np.arange(1, months + 1)
 
-    def scenarios(self, months: int = 120) -> pd.DataFrame:
+    def scenarios(self, months: int = 60) -> pd.DataFrame:
         """Monthly worst / likely / best prices for the next `months` months."""
         q = self.spread_quantiles(months)
         c = self.center(months)
