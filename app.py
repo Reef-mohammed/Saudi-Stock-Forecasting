@@ -1,5 +1,5 @@
 """
-5-Year Saudi Stock Forecast: pick companies, see crash / likely / good cases over the next 5 years.
+Saudi Stock Forecast: pick companies, see crash / likely / good cases over the next 5 years.
 
 Run locally:  streamlit run app.py
 Reads the stored history in app_data/ (export_app_data.py) and tops it up with recent Yahoo
@@ -65,7 +65,7 @@ COLORS = {"crash": "#d64545", "likely": "#2f6fdb", "good": "#2e9d5b", "history":
 
 T = {
     "en": {
-        "title": "5-Year Saudi Stock Forecast",
+        "title": "Saudi Stock Forecast",
         "subtitle": "Three possibilities for the share price in 5 years (crash, likely and good), based on over 20 years of Tadawul data.",
         "pick": "Choose one or more companies", "placeholder": "Search companies",
         "lang": "العربية",
@@ -256,10 +256,11 @@ def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> 
 
 # ----------------------------------------------------------------------------- page
 def main() -> None:
-    st.set_page_config(page_title="5-Year Saudi Stock Forecast", page_icon="📈", layout="centered")
     if "lang" not in st.session_state:
         st.session_state.lang = "ar"
     t = T[st.session_state.lang]
+    # Page name in the chosen language: it is the browser tab and the home-screen icon's name
+    st.set_page_config(page_title=t["title"], page_icon="📈", layout="centered")
     st.markdown(CHART_CSS, unsafe_allow_html=True)
     if st.session_state.lang == "ar":
         st.markdown(RTL_CSS, unsafe_allow_html=True)

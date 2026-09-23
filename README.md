@@ -1,4 +1,4 @@
-# 5-Year Saudi Stock Forecast
+# Saudi Stock Forecast
 
 **Live app: [saudi-stock-forecasting.streamlit.app](https://saudi-stock-forecasting.streamlit.app)** (Arabic and English, works on phones)
 
