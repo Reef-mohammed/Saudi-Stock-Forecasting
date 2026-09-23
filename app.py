@@ -22,6 +22,17 @@ DATA = Path("data")
 MAX_YEARS = 5
 DAYS_PER_MONTH = 30.44
 LTR = "‎"                    # keeps "-75%" from being flipped to "75%-" in Arabic text
+LTR_ISOLATE = "⁦{}⁩"    # keeps "2005–2021" in order inside Arabic text
+# Streamlit's own styles left-align headings, captions and lists, so right-align them explicitly.
+# Charts stay left-to-right (time runs left to right in both languages).
+RTL_CSS = """<style>
+.stMainBlockContainer { direction: rtl; }
+.stMainBlockContainer h1, .stMainBlockContainer h2, .stMainBlockContainer h3,
+.stMainBlockContainer p, .stMainBlockContainer li, .stMainBlockContainer th,
+.stMainBlockContainer td, [data-testid="stCaptionContainer"] { text-align: right !important; }
+.stMainBlockContainer ul, .stMainBlockContainer ol { padding-right: 1.5em; padding-left: 0; }
+.js-plotly-plot, .js-plotly-plot * { direction: ltr; }
+</style>"""
 COLORS = {"crash": "#d64545", "likely": "#2f6fdb", "good": "#2e9d5b", "history": "#555555",
           "band": "rgba(47,111,219,0.12)"}
 
@@ -51,7 +62,7 @@ T = {
             "many Saudi stocks lost more than half their value within a year. The crash case is "
             "built to cover that, but a worse crash is always possible."
         ),
-        "tested": "Tested on {n:,} past forecasts made {origins}: {below:.0%} ended below the crash case, "
+        "tested": "Tested on {n:,} past 5-year forecasts made {origins}: {below:.0%} ended below the crash case, "
                   "{above:.0%} above the good case.",
         "short": "{name} has only {years:.1f} years of history, so its scenarios are less reliable.",
         "no_2006": "{name} was listed after the 2006 crash, so its own history has no crash like it. "
@@ -81,7 +92,7 @@ T = {
             "عندما ينهار السوق كله تنخفض معظم الأسهم معاً، وفي عام 2006 خسرت أسهم سعودية كثيرة أكثر "
             "من نصف قيمتها خلال سنة. حالة الانهيار مصممة لتغطية ذلك، لكن انهياراً أسوأ ممكن دائماً."
         ),
-        "tested": "تم اختبارها على {n:,} توقع سابق بين {origins}: {below:.0%} انتهت تحت حالة الانهيار، "
+        "tested": "تم اختبارها على {n:,} توقع سابق لمدة 5 سنوات بين {origins}: {below:.0%} انتهت تحت حالة الانهيار، "
                   "و{above:.0%} فوق الحالة الجيدة.",
         "short": "لدى {name} بيانات لمدة {years:.1f} سنوات فقط، لذلك سيناريوهاتها أقل موثوقية.",
         "no_2006": "أُدرجت {name} بعد انهيار 2006، لذلك لا يحتوي تاريخها على انهيار مماثل. "
@@ -133,12 +144,12 @@ def tested_note(cal: dict, t: dict) -> str:
     """Backtest result at the chart's end (5 years)."""
     h = f"{MAX_YEARS}y"
     r = cal["tested"][h]
-    return t["tested"].format(n=r["n"], origins=r["origins"].replace("-", "–"),
-                              below=r["below_worst"], above=r["above_best"]) + f" ({h})"
+    return t["tested"].format(n=r["n"], origins=LTR_ISOLATE.format(r["origins"].replace("-", "–")),
+                              below=r["below_worst"], above=r["above_best"])
 
 
 # ----------------------------------------------------------------------------- chart
-def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict) -> go.Figure:
+def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> go.Figure:
     hist = close[close.index >= close.index[-1] - pd.DateOffset(years=2)]
     today = pd.DataFrame({"date": [close.index[-1]], "crash": [close.iloc[-1]],
                           "likely": [close.iloc[-1]], "good": [close.iloc[-1]]})
@@ -157,9 +168,10 @@ def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict) -> go.Figure:
     fig.add_trace(go.Scatter(x=sc["date"], y=sc["likely"], name=t["likely"],
                              line=dict(color=COLORS["likely"], width=2, dash="dash"),
                              hovertemplate="%{y:.2f}<extra>" + t["likely"] + "</extra>"))
-    fig.update_layout(title=dict(text=name, font=dict(size=16)), height=360,
+    side = dict(x=1, xanchor="right") if rtl else dict(x=0, xanchor="left")
+    fig.update_layout(title=dict(text=name, font=dict(size=16), **side), height=360,
                       margin=dict(l=10, r=10, t=40, b=10), hovermode="x unified",
-                      legend=dict(orientation="h", yanchor="top", y=-0.12, x=0),
+                      legend=dict(orientation="h", yanchor="top", y=-0.12, **side),
                       yaxis_title="SAR", dragmode=False)
     return fig
 
@@ -171,9 +183,7 @@ def main() -> None:
         st.session_state.lang = "ar"
     t = T[st.session_state.lang]
     if st.session_state.lang == "ar":
-        st.markdown("<style>.stMainBlockContainer, [data-testid='stSidebar'] {direction: rtl; "
-                    "text-align: right;} .js-plotly-plot {direction: ltr;}</style>",
-                    unsafe_allow_html=True)
+        st.markdown(RTL_CSS, unsafe_allow_html=True)
 
     top = st.columns([4, 1])
     top[0].title(t["title"])
@@ -202,7 +212,7 @@ def main() -> None:
         # Percent changes keep the table narrow enough for a phone; prices are on the charts
         rows.append({t["company"]: label, t["price_today"]: f"{now:.2f}",
                      **{t[k]: pct(end[k] / now - 1) for k in ("crash", "likely", "good")}})
-        figs.append(chart(label, close, sc, t))
+        figs.append(chart(label, close, sc, t, rtl=st.session_state.lang == "ar"))
         hist_years = (close.index[-1] - close.index[0]).days / 365.25
         if hist_years < 5:
             notes.append(t["short"].format(name=info["name"], years=hist_years))
