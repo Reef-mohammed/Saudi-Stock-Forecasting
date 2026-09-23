@@ -256,6 +256,9 @@ def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> 
                       yaxis_title="SAR", dragmode=False)
     fig.update_xaxes(showspikes=True, spikemode="across", spikesnap="cursor", spikethickness=1,
                      spikedash="dot", spikecolor="#888888")
+    # Fixed axes: touching the chart on a phone must not zoom or pan it, only show the values
+    fig.update_xaxes(fixedrange=True)
+    fig.update_yaxes(fixedrange=True)
     return fig
 
 
@@ -323,7 +326,8 @@ def main() -> None:
         st.caption("⚠️ " + note)
 
     for fig in figs:
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(fig, use_container_width=True, config={
+            "displayModeBar": False, "scrollZoom": False, "doubleClick": False, "showAxisDragHandles": False})
 
     with st.expander(t["what_title"], expanded=True):
         st.markdown(t["what"])
