@@ -227,13 +227,15 @@ def chart(close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> go.Figure:
     fig.add_trace(go.Scatter(x=hist.index, y=hist.values, name=t["history"],
                              line=dict(color=COLORS["history"], width=1.5),
                              hovertemplate=value_hover("history")))
-    fig.add_trace(scenario("good"))
-    # The shaded band is its own hidden trace: filled on the crash line, it would also show under
-    # the red line in the legend and hover box
-    fig.add_trace(go.Scatter(x=sc["date"], y=sc["crash"], fill="tonexty", fillcolor=COLORS["band"],
-                             line=dict(width=0), showlegend=False, hoverinfo="skip"))
+    # The hover box lists traces in reverse order, so adding crash, likely, good shows them as
+    # good, likely, crash (top to bottom)
     fig.add_trace(scenario("crash"))
+    # The shaded band is its own hidden trace (filled on a scenario line, it would also show under
+    # that line in the hover box): the good line, filled down to the crash line added before it
+    fig.add_trace(go.Scatter(x=sc["date"], y=sc["good"], fill="tonexty", fillcolor=COLORS["band"],
+                             line=dict(width=0), showlegend=False, hoverinfo="skip"))
     fig.add_trace(scenario("likely"))
+    fig.add_trace(scenario("good"))
 
     fig.update_layout(height=320, margin=dict(l=10, r=0, t=10, b=10), showlegend=False,
                       hovermode="x unified",
