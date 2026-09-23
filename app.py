@@ -243,9 +243,11 @@ def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> 
                       # (left in English)
                       # Transparent backgrounds: each legend box is taller than the row gap, and an
                       # opaque second box would cover the bottom of the first row's text
-                      legend=dict(orientation="h", yanchor="top", y=-0.12, entrywidth=85,
+                      # Items sized to their text (no fixed width), so the text itself ends at the
+                      # edge the title lines up with, rather than empty padding
+                      legend=dict(orientation="h", yanchor="top", y=-0.12,
                                   font=dict(size=11), bgcolor="rgba(0,0,0,0)", **side),
-                      legend2=dict(orientation="h", yanchor="top", y=-0.21, entrywidth=85,
+                      legend2=dict(orientation="h", yanchor="top", y=-0.21,
                                    font=dict(size=11), bgcolor="rgba(0,0,0,0)", **side),
                       yaxis_title="SAR", dragmode=False)
     # Hover header is the month (Arabic names come from the chart config's locale); label every
