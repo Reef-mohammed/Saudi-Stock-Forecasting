@@ -69,12 +69,12 @@ T = {
             "of the whole market, when most stocks drop together, but an even bigger fall is always "
             "possible. Use these numbers as a guide, not a guarantee."
         ),
-        "tested": "Tested on {n:,} past 5-year forecasts made {origins}: {below:.0%} ended below the crash case, "
-                  "{above:.0%} above the good case.",
+        "tested": "Tested on {n:,} past 5-year forecasts made {origins}: {below} ended below the crash case, "
+                  "{above} above the good case.",
         "short": "{name} has only {years:.1f} years of history, so its scenarios are less reliable.",
         "no_crash": "{name} is a newer listing, so its own history has no severe market crash. "
                     "Its crash case is widened using how other Saudi stocks fell in past crashes.",
-        "data_date": "Prices up to {date}.",
+        "data_date": "Last update: {date}",
     },
     "ar": {
         "title": "توقعات الأسهم السعودية لـ 5 سنوات",
@@ -99,12 +99,12 @@ T = {
             "تُظهر حالة الانهيار ما قد يحدث عند هبوط حاد في السوق كله تنخفض فيه معظم الأسهم معاً، "
             "لكن هبوطاً أكبر ممكن دائماً. استخدم هذه الأرقام كدليل، وليس كضمان."
         ),
-        "tested": "تم اختبارها على {n:,} توقع سابق لمدة 5 سنوات بين {origins}: {below:.0%} انتهت تحت حالة الانهيار، "
-                  "و{above:.0%} فوق الحالة الجيدة.",
+        "tested": "تم اختبارها على {n:,} توقع سابق لمدة 5 سنوات بين {origins}: {below} انتهت تحت حالة الانهيار، "
+                  "و{above} فوق الحالة الجيدة.",
         "short": "لدى {name} بيانات لمدة {years:.1f} سنوات فقط، لذلك سيناريوهاتها أقل موثوقية.",
         "no_crash": "{name} شركة مدرجة حديثاً، لذلك لا يحتوي تاريخها على انهيار حاد للسوق. "
                     "تم توسيع حالة الانهيار لها بناءً على هبوط الأسهم السعودية الأخرى في الانهيارات السابقة.",
-        "data_date": "الأسعار حتى {date}.",
+        "data_date": "آخر تحديث: {date}",
     },
 }
 
@@ -156,7 +156,8 @@ def tested_note(cal: dict, t: dict) -> str:
     h = f"{MAX_YEARS}y"
     r = cal["tested"][h]
     return t["tested"].format(n=r["n"], origins=LTR_ISOLATE.format(r["origins"].replace("-", "–")),
-                              below=r["below_worst"], above=r["above_best"])
+                              below=LTR_ISOLATE.format(f"{r['below_worst']:.0%}"),
+                              above=LTR_ISOLATE.format(f"{r['above_best']:.0%}"))
 
 
 # ----------------------------------------------------------------------------- chart
@@ -247,7 +248,8 @@ def main() -> None:
     with st.expander(t["what_title"], expanded=True):
         st.markdown(t["what"])
         st.caption(tested_note(cal, t))
-    st.caption(t["data_date"].format(date=f"{max(load_close(p).index[-1] for p in picked):%Y-%m-%d}"))
+    last = max(load_close(p).index[-1] for p in picked)
+    st.caption(t["data_date"].format(date=LTR_ISOLATE.format(f"{last:%Y-%m-%d}")))
 
 
 if __name__ == "__main__":
