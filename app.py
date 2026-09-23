@@ -271,11 +271,11 @@ def main() -> None:
     if st.session_state.lang == "ar":
         st.markdown(RTL_CSS, unsafe_allow_html=True)
 
-    top = st.columns([4, 1])
-    top[0].title(t["title"])
-    if top[1].button(t["lang"], use_container_width=True):
+    # Small language switch above the title, only as wide as its text
+    if st.button(t["lang"], width="content"):
         st.session_state.lang = "en" if st.session_state.lang == "ar" else "ar"
         st.rerun()
+    st.title(t["title"])
     st.caption(t["subtitle"])
 
     companies = load_companies()
