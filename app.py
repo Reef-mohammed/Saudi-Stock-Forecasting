@@ -27,6 +27,9 @@ LIVE_OVERLAP_DAYS = 365           # overlap with stored history, to detect new s
 # for companies renamed after the 2020 dataset (e.g. Saudi National Bank, Saudi Awwal Bank)
 NAMES = Path("company_names.csv")
 MAX_YEARS = 5
+MAX_COMPANIES = 5
+RLM = chr(0x200F)                 # right-to-left mark
+RTL_ISOLATE = "\u2067{}\u2069"    # keeps an Arabic label right-to-left inside left-to-right text
 DAYS_PER_MONTH = 30.44
 ARABIC_MONTHS = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
                  "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
@@ -36,6 +39,8 @@ LTR_ISOLATE = "\u2066{}\u2069"    # keeps "2005–2021" in order inside Arabic t
 # Charts stay left-to-right (time runs left to right in both languages).
 RTL_CSS = """<style>
 .stMainBlockContainer { direction: rtl; }
+/* The company dropdown opens outside the main container, so it needs its own direction */
+[data-testid="stMultiSelectDropdown"] { direction: rtl; text-align: right; }
 .stMainBlockContainer h1, .stMainBlockContainer h2, .stMainBlockContainer h3,
 .stMainBlockContainer p, .stMainBlockContainer li, .stMainBlockContainer th,
 .stMainBlockContainer td, [data-testid="stCaptionContainer"] { text-align: right !important; }
@@ -133,7 +138,10 @@ def load_companies() -> pd.DataFrame:
     c["name_en"] = c["name_en"].fillna(c["name"])
     c["name_ar"] = c["name_ar"].fillna(c["name_en"])
     code = " (" + c["ticker"].str.replace(".SR", "", regex=False) + ")"
-    c["label_en"], c["label_ar"] = c["name_en"] + code, c["name_ar"] + code
+    c["label_en"] = c["name_en"] + code
+    # Isolate each Arabic label as right-to-left, so "(1120)" stays after the name even where the
+    # surrounding text is left-to-right (the dropdown list, chart titles)
+    c["label_ar"] = (c["name_ar"] + code).map(RTL_ISOLATE.format)
     return c.set_index("ticker")
 
 
@@ -269,7 +277,9 @@ def main() -> None:
     key = f"picked_{lang}"
     if key not in st.session_state:
         st.session_state[key] = st.session_state.get("picked", ["1120.SR", "2222.SR"])
-    picked = st.multiselect(t["pick"], labels.index, key=key, format_func=labels.get)
+    # At most 5: each company adds a chart and a live price download
+    picked = st.multiselect(t["pick"], labels.index, key=key, format_func=labels.get,
+                            max_selections=MAX_COMPANIES, select_all=False)
     st.session_state.picked = picked
 
     st.warning(t["warning"])
@@ -286,7 +296,10 @@ def main() -> None:
         # Percent changes keep the table narrow enough for a phone; prices are on the charts
         rows.append({t["company"]: label, t["price_today"]: f"{now:.2f}",
                      **{t[k]: pct(end[k] / now - 1) for k in ("crash", "likely", "good")}})
-        figs.append(chart(label, close, sc, t, rtl=lang == "ar"))
+        # Chart titles are drawn as SVG, where phones ignore the isolate marks in the label; a
+        # right-to-left mark (RLM) on each side keeps "(1120)" after the name there
+        title = f"{RLM}{name} ({ticker[:4]}){RLM}" if lang == "ar" else label
+        figs.append(chart(title, close, sc, t, rtl=lang == "ar"))
         hist_years = (close.index[-1] - close.index[0]).days / 365.25
         if hist_years < 5:
             notes.append(t["short"].format(name=name, years=hist_years))
