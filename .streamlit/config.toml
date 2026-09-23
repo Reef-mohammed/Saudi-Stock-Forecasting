@@ -1,0 +1,7 @@
+# Accent color for the company picker chips and other highlights; matches the "Likely" line.
+# Set per mode so the app still follows the device's light/dark setting.
+[theme.light]
+primaryColor = "#2f6fdb"
+
+[theme.dark]
+primaryColor = "#2f6fdb"
