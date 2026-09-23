@@ -1,7 +1,8 @@
-# App (Streamlit Cloud installs this)
-pandas>=2.1
-numpy
-pyarrow
-yfinance>=0.2.40
-streamlit>=1.40
-plotly>=5.20
+# App packages (Streamlit Cloud installs this file).
+# Pinned to the versions the app was tested with, so a new release can't break the live app.
+numpy==2.5.3
+pandas==3.0.6
+pyarrow==25.0.1
+yfinance==1.7.0
+streamlit==1.64.0
+plotly==7.1.0

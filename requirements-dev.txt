@@ -1,4 +1,5 @@
-# Research scripts: dataset build, backtests, calibration
+# Research scripts: dataset build, backtests and scenario calibration.
+# Install with: pip install -r requirements-dev.txt
 -r requirements.txt
-kaggle
-xgboost>=2.0
+kaggle==2.2.4
+xgboost==3.4.1
