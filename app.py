@@ -19,7 +19,9 @@ import streamlit as st
 from models.montecarlo import MonteCarlo, scale_curve
 
 DATA = Path("data")
-NAMES_AR = Path("company_names_ar.csv")      # official Arabic names (from Tadawul's list on Arabic Wikipedia)
+# Current English and Arabic names: Arabic from Tadawul's list on Arabic Wikipedia, English updated
+# for companies renamed after the 2020 dataset (e.g. Saudi National Bank, Saudi Awwal Bank)
+NAMES = Path("company_names.csv")
 MAX_YEARS = 5
 DAYS_PER_MONTH = 30.44
 LTR = "\u200e"                    # keeps "-75%" from being flipped to "75%-" in Arabic text
@@ -112,10 +114,11 @@ T = {
 def load_companies() -> pd.DataFrame:
     """Active companies indexed by ticker, with a display label per language: 'Name (1234)'."""
     c = pd.read_csv(DATA / "companies.csv", parse_dates=["first_date", "last_date"])
-    c = c[c["active"]].merge(pd.read_csv(NAMES_AR), on="ticker", how="left")
-    c["name_ar"] = c["name_ar"].fillna(c["name"])
+    c = c[c["active"]].merge(pd.read_csv(NAMES), on="ticker", how="left")
+    c["name_en"] = c["name_en"].fillna(c["name"])
+    c["name_ar"] = c["name_ar"].fillna(c["name_en"])
     code = " (" + c["ticker"].str.replace(".SR", "", regex=False) + ")"
-    c["label_en"], c["label_ar"] = c["name"] + code, c["name_ar"] + code
+    c["label_en"], c["label_ar"] = c["name_en"] + code, c["name_ar"] + code
     return c.set_index("ticker")
 
 
@@ -220,7 +223,7 @@ def main() -> None:
 
     rows, figs, notes = [], [], []
     for ticker in picked:
-        label, name = labels[ticker], companies.loc[ticker, "name_ar" if lang == "ar" else "name"]
+        label, name = labels[ticker], companies.loc[ticker, f"name_{lang}"]
         close = load_close(ticker)
         sc = scenarios(ticker, close.index[-1])
         end, now = sc.iloc[-1], close.iloc[-1]
