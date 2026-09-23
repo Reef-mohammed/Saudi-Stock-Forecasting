@@ -81,10 +81,9 @@ T = {
             "- The shaded area is where the price stayed about 9 times out of 10 in our tests."
         ),
         "warning": (
-            "**These forecasts are not certain, and this is not financial advice.** Stock prices "
-            "cannot be predicted reliably. The crash case shows what could happen in a severe fall "
-            "of the whole market, when most stocks drop together, but an even bigger fall is always "
-            "possible. Use these numbers as a guide, not a guarantee."
+            "**Disclaimer:** This information is for illustration only and is not a recommendation "
+            "to buy or sell. Past performance does not guarantee future results, and actual losses "
+            "may exceed the crash case."
         ),
         "tested": "Tested on {n:,} past 5-year forecasts made {origins}: {below} ended below the crash case, "
                   "{above} above the good case.",
@@ -112,9 +111,8 @@ T = {
             "- المنطقة المظللة هي المكان الذي بقي فيه السعر تقريباً 9 مرات من كل 10 في اختباراتنا."
         ),
         "warning": (
-            "**هذه التوقعات غير مؤكدة وليست نصيحة مالية.** لا يمكن التنبؤ بأسعار الأسهم بدقة. "
-            "توضح حالة الانهيار ما قد يحدث عند حدوث هبوط حاد يشمل السوق بأكمله، مما قد يؤدي إلى "
-            "انخفاض معظم الأسهم معًا. ومع ذلك، يظل حدوث هبوط أكبر أمرًا ممكنًا."
+            "**تنويه:** المعلومات الواردة لأغراض توضيحية فقط ولا تُعدّ توصية بالشراء أو البيع. "
+            "الأداء السابق لا يضمن النتائج المستقبلية، وقد تكون الخسائر الفعلية أكبر من حالة الانهيار."
         ),
         "tested": "تم اختبارها على {n:,} توقع سابق لمدة 5 سنوات بين {origins}: {below} انتهت تحت حالة الانهيار، "
                   "و{above} فوق الحالة الجيدة.",
