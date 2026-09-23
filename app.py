@@ -57,8 +57,8 @@ T = {
         "what": (
             "- **Likely** is today's price. In our tests, no method predicted the direction of Saudi "
             "stocks better than assuming they stay where they are.\n"
-            "- **Crash case** is sized to hold even through the 2006 market crash: in every year we "
-            "tested since 2005, at most 1 in 10 stocks ended below it.\n"
+            "- **Crash case** is built to hold even in a severe market crash: in every year we "
+            "tested since 2005, including the worst ones, at most 1 in 10 stocks ended below it.\n"
             "- **Good case**: about 1 in 10 stocks ended above it. Beating it is possible, especially "
             "in a boom.\n"
             "- The shaded area is where the price stayed about 9 times out of 10 in our tests."
@@ -72,8 +72,8 @@ T = {
         "tested": "Tested on {n:,} past 5-year forecasts made {origins}: {below:.0%} ended below the crash case, "
                   "{above:.0%} above the good case.",
         "short": "{name} has only {years:.1f} years of history, so its scenarios are less reliable.",
-        "no_2006": "{name} was listed after the 2006 crash, so its own history has no crash like it. "
-                   "Its crash case is widened using what happened to other stocks in 2006.",
+        "no_crash": "{name} is a newer listing, so its own history has no severe market crash. "
+                    "Its crash case is widened using how other Saudi stocks fell in past crashes.",
         "data_date": "Prices up to {date}.",
     },
     "ar": {
@@ -89,8 +89,8 @@ T = {
         "what": (
             "- **المتوقع** هو سعر اليوم. في اختباراتنا لم تتفوق أي طريقة في توقع اتجاه الأسهم السعودية "
             "على افتراض بقاء السعر كما هو.\n"
-            "- **حالة الانهيار** مصممة لتصمد حتى في انهيار السوق عام 2006: في كل سنة اختبرناها منذ 2005، "
-            "انتهى سهم واحد من كل 10 أسهم على الأكثر تحتها.\n"
+            "- **حالة الانهيار** مصممة لتصمد حتى في انهيارات السوق الحادة: في كل سنة اختبرناها منذ 2005، "
+            "بما فيها أسوأ السنوات، انتهى سهم واحد من كل 10 أسهم على الأكثر تحتها.\n"
             "- **الحالة الجيدة**: انتهى سهم واحد تقريباً من كل 10 أسهم فوقها، وتجاوزها ممكن خاصة في فترات الارتفاع.\n"
             "- المنطقة المظللة هي المكان الذي بقي فيه السعر تقريباً 9 مرات من كل 10 في اختباراتنا."
         ),
@@ -102,8 +102,8 @@ T = {
         "tested": "تم اختبارها على {n:,} توقع سابق لمدة 5 سنوات بين {origins}: {below:.0%} انتهت تحت حالة الانهيار، "
                   "و{above:.0%} فوق الحالة الجيدة.",
         "short": "لدى {name} بيانات لمدة {years:.1f} سنوات فقط، لذلك سيناريوهاتها أقل موثوقية.",
-        "no_2006": "أُدرجت {name} بعد انهيار 2006، لذلك لا يحتوي تاريخها على انهيار مماثل. "
-                   "تم توسيع حالة الانهيار لها بناءً على ما حدث للأسهم الأخرى في 2006.",
+        "no_crash": "{name} شركة مدرجة حديثاً، لذلك لا يحتوي تاريخها على انهيار حاد للسوق. "
+                    "تم توسيع حالة الانهيار لها بناءً على هبوط الأسهم السعودية الأخرى في الانهيارات السابقة.",
         "data_date": "الأسعار حتى {date}.",
     },
 }
@@ -235,7 +235,7 @@ def main() -> None:
         if hist_years < 5:
             notes.append(t["short"].format(name=name, years=hist_years))
         elif close.index[0] > pd.Timestamp("2006-01-01"):
-            notes.append(t["no_2006"].format(name=name))
+            notes.append(t["no_crash"].format(name=name))
 
     st.subheader(t["summary"] + " · " + t["in_years"])
     st.table(pd.DataFrame(rows).set_index(t["company"]))
