@@ -50,8 +50,6 @@ RTL_CSS = """<style>
   border-left: 1px solid rgba(128, 128, 128, 0.2) !important; border-right: none !important; }
 .stMainBlockContainer tr > :last-child { border-left: none !important; }
 .js-plotly-plot, .js-plotly-plot * { direction: ltr; }
-/* Hover box text is Arabic, so lay it out right to left ("7 مايو 2025", not "مايو 2025 7") */
-.js-plotly-plot .hoverlayer .hovertext text { direction: rtl; unicode-bidi: plaintext; }
 </style>"""
 # Plotly's hover mode "x" also labels the axis with an English date; the hover box already shows it
 CHART_CSS = """<style>
@@ -224,13 +222,18 @@ def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> 
 
     # One invisible line carries the whole hover box. Streamlit's Plotly has no Arabic month
     # names, so the dates are written out here rather than formatted by Plotly.
+    # The hover box is SVG text in a left-to-right chart; a right-to-left mark (RLM) at each end of
+    # an Arabic line keeps its words in order. (CSS direction on SVG text breaks the box in Safari.)
+    mark = RLM if rtl else ""
+
     def date_text(d: pd.Timestamp, with_day: bool) -> str:
         month = ARABIC_MONTHS[d.month - 1] if rtl else f"{d:%b}"
-        return f"{d.day} {month} {d.year}" if with_day else f"{month} {d.year}"
+        text = f"{d.day} {month} {d.year}" if with_day else f"{month} {d.year}"
+        return f"{mark}{text}{mark}"
 
     def line(key: str, value: float) -> str:
         color = "#dddddd" if key == "history" else COLORS[key]    # grey line colour is too dark here
-        return f"<span style='color:{color}'>{t[key]}: {value:.2f} {t['sar']}</span>"
+        return f"<span style='color:{color}'>{mark}{t[key]}: {value:.2f} {t['sar']}{mark}</span>"
 
     past = [f"<b>{date_text(d, True)}</b><br>{line('history', v)}" for d, v in hist.items()]
     future = [f"<b>{date_text(r.date, False)}</b><br>{line('likely', r.likely)}<br>"
