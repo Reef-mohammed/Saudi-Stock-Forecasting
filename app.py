@@ -219,10 +219,11 @@ def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> 
 
     def scenario(key: str) -> go.Scatter:
         return go.Scatter(x=sc["date"], y=sc[key], name=t[key], hovertemplate=value_hover(key),
-                          line=dict(color=COLORS[key], width=2, dash="dash" if key == "likely" else "solid"))
+                          line=dict(color=COLORS[key], width=2, dash="dash" if key == "likely" else "solid"),
+                          legend="legend2" if key == "good" else "legend")    # row 1: likely, crash
 
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=hist.index, y=hist.values, name=t["history"],
+    fig.add_trace(go.Scatter(x=hist.index, y=hist.values, name=t["history"], legend="legend2",
                              line=dict(color=COLORS["history"], width=1.5),
                              hovertemplate=value_hover("history")))
     fig.add_trace(scenario("good"))
@@ -237,9 +238,12 @@ def chart(name: str, close: pd.Series, sc: pd.DataFrame, t: dict, rtl: bool) -> 
     fig.update_layout(title=dict(text=name, font=dict(size=16), **side), height=360,
                       margin=dict(l=10, r=10, t=40, b=10), hovermode="x unified",
                       hoverlabel=dict(bgcolor="#1b1d24", bordercolor="#444444", font=dict(color="#f0f0f0")),
-                      # Each legend item takes half the width: two per row, a 2 x 2 grid
-                      legend=dict(orientation="h", yanchor="top", y=-0.12, entrywidth=0.5,
-                                  entrywidthmode="fraction", **side),
+                      # Two legends of two items, one per row: a compact 2 x 2 block on the right
+                      # (left in English)
+                      legend=dict(orientation="h", yanchor="top", y=-0.12, entrywidth=85,
+                                  font=dict(size=11), **side),
+                      legend2=dict(orientation="h", yanchor="top", y=-0.2, entrywidth=85,
+                                   font=dict(size=11), **side),
                       yaxis_title="SAR", dragmode=False)
     # Hover header is the month (Arabic names come from the chart config's locale); label every
     # year, even on a phone, where Plotly would otherwise skip to every other year
